@@ -58,7 +58,9 @@ compare_results(R1, R2) ->
     R1 == R2.
 
 check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
+    application:start(wrangler), % TODO
     {_, ProjFolder} = file:get_cwd(),
+    debugger:start(),
     recreate_project(ProjFolder),
     file:set_cwd("tmp"),
     checkout(OrigHash),
@@ -68,8 +70,11 @@ check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
     R2 = run_tests(RefacName, TestData),
     file:set_cwd(".."),
     cleanup(),
-    compare_results(R1, R2).
+    compare_results(R1, R2),
+    application:stop(wrangler). % TODO
 
+demo() ->
+    debugger:quick(vsc_equiv,check_equiv,["79207c7c3","1b0168",f_old,f_new]).
 
 % forall(X, int(), test_old(X) == test_new(X))
 % test_old(data):
