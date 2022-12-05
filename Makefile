@@ -1,4 +1,5 @@
 TARGET_DIR=ebin
 
-all: vsc_equiv.erl
-	erlc -o ${TARGET_DIR} vsc_equiv.erl
+all: src/vsc_equiv.erl
+	erlc -o ${TARGET_DIR} src/vsc_equiv.erl
+	erlc -o ${TARGET_DIR} src/utils.erl
