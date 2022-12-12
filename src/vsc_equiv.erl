@@ -36,6 +36,9 @@ comp(FunName, ProjFolder, DirName) ->
     file:make_dir(DirName),
     lists:map(fun(X) -> compile:file(X, {outdir, DirName}) end, Modules).
 
+comp(Modules, DirName) ->
+    file:make_dir(DirName),
+    lists:map(fun(X) -> compile:file(X, {outdir, DirName}) end, Modules).
 
 check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
     application:start(wrangler), % TODO
@@ -60,12 +63,49 @@ check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
     % Generate random data (assume we know the type of data for now) and check
     % if the outputs are equivalent
     % RES = proper:quickcheck(?FORALL(I, integer(), prop_same_output(OrigNode, RefacNode, test, f_old, f_new, [I]))), % TODO Give back the minimal input that falsifies the assertion
-    RES = proper:quickcheck(?FORALL(L, list(integer()), prop_same_output(OrigNode, RefacNode, test, f_old, f_new, [L]))), % TODO Give back the minimal input that falsifies the assertion
+    RES = proper:quickcheck(?FORALL(L, list(integer()), prop_same_output(OrigNode, RefacNode, test, OrigName, RefacName, [L]))), % TODO Give back the minimal input that falsifies the assertion
 
     file:set_cwd(".."),
     cleanup(),
     application:stop(wrangler), % TODO
     RES.
+
+check_equiv(OrigHash, RefacHash) ->
+    application:start(wrangler), % TODO
+    {_, ProjFolder} = file:get_cwd(),
+    recreate_project(ProjFolder),
+    file:set_cwd("tmp"), % TODO Change this to something like /tmp later
+
+    [OrigFun, RefacFun] = general_refac:diffing(OrigHash, RefacHash),
+    ChangedFile = general_refac:get_filename(element(1,RefacFun)),
+    CallerFiles = general_refac:find_callers(RefacFun),
+
+    Modules = lists:uniq([ChangedFile|CallerFiles]),
+
+    % Checkout and compile the necessary modules into two separate folders
+    % This is needed because QuickCheck has to evaluate to old and the new
+    % function repeatedly side-by-side
+    checkout(OrigHash),
+    comp(Modules, "orig"),
+
+    checkout(RefacHash),
+    comp(Modules, "refac"),
+
+    % Hard-coded for now
+    start_nodes(),
+    OrigNode = 'orig@x200s',
+    RefacNode = 'refac@x200s',
+
+    % TODO Modify this to run the tests on all the functions, using their spec to generate data
+    % Generate random data (assume we know the type of data for now) and check
+    % if the outputs are equivalent
+    % RES = proper:quickcheck(?FORALL(I, integer(), prop_same_output(OrigNode, RefacNode, test, f_old, f_new, [I]))), % TODO Give back the minimal input that falsifies the assertion
+    % RES = proper:quickcheck(?FORALL(L, list(integer()), prop_same_output(OrigNode, RefacNode, test, OrigName, RefacName, [L]))), % TODO Give back the minimal input that falsifies the assertion
+
+    file:set_cwd(".."),
+    cleanup(),
+    application:stop(wrangler). % TODO
+    % RES.
 
 start_nodes() ->
     % TODO
