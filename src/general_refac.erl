@@ -33,3 +33,11 @@ find_callers({FunName, Arity}) ->
     {_, Folder} = file:get_cwd(),
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunNameAtom, Arity, [Folder], 4),
     lists:map(fun({{FileName,_,_},_}) -> FileName end, Funs).
+
+% TODO Functions can have the same name with different arity
+get_spec({FunName, _}) ->
+    FileName = get_filename(FunName),
+    {_, File} = file:read_file(FileName),
+    Source = erlang:binary_to_list(File),
+    Lines = string:split(Source, "\n", all),
+    hd(lists:dropwhile(fun(X) -> not(lists:prefix("-spec", X)) end, Lines)).
