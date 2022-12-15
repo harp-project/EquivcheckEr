@@ -55,10 +55,7 @@ check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
     checkout(RefacHash),
     comp(RefacName, ProjFolder, "refac"),
 
-    % Hard-coded for now
-    start_nodes(),
-    OrigNode = 'orig@x200s',
-    RefacNode = 'refac@x200s',
+    {OrigNode, RefacNode} = start_nodes(),
 
     % Generate random data (assume we know the type of data for now) and check
     % if the outputs are equivalent
@@ -67,6 +64,7 @@ check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
 
     file:set_cwd(".."),
     cleanup(),
+    stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler), % TODO
     RES.
 
@@ -108,30 +106,19 @@ check_equiv(OrigHash, RefacHash) ->
     % RES.
 
 start_nodes() ->
-    % TODO
-    file:set_cwd('orig'),
-    os:cmd('erl -detached -sname orig'),
-    file:set_cwd('../refac'),
-    os:cmd('erl -detached -sname refac'),
-    file:set_cwd('..').
+    {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", "orig"]}),
+    {_, Refac, _} = peer:start(#{name => refac, connection => 33002, args => ["-pa", "refac"]}),
+    {Orig, Refac}.
+
+stop_nodes(Orig, Refac) ->
+    peer:stop(Orig),
+    peer:stop(Refac).
 
 prop_same_output(OrigNode, RefacNode, Module, OldName, NewName, Args) ->
     % Spawns a process on each node that evaluates the function and
     % sends back the result to this process
     
-    spawn(OrigNode,vsc_equiv,send_result,[{self(),Module,OldName,Args}]),
-    A = receive_result(),
-
-    spawn(RefacNode,vsc_equiv,send_result,[{self(),Module,NewName,Args}]),
-    B = receive_result(),
+    A = peer:call(OrigNode, Module, OldName, Args),
+    B = peer:call(RefacNode, Module, NewName, Args),
 
     A =:= B.
-
-% Sends back the result of applying the function to the pid passed in the argument "From"
-send_result({From, Module, Fun, Args}) -> From ! erlang:apply(Module, Fun, Args).
-
-receive_result() ->
-    receive
-        Value -> Value
-    end,
-    Value.
