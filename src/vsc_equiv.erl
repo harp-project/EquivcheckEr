@@ -47,53 +47,38 @@ check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
     % This is needed because QuickCheck has to evaluate to old and the new
     % function repeatedly side-by-side
     checkout(OrigHash),
-    comp(OrigName, ProjFolder, "old"),
+    comp(OrigName, ProjFolder, "orig"),
 
     checkout(RefacHash),
-    comp(RefacName, ProjFolder, "new"),
-    
-    % Save the current module path, and create two new module paths
-    % with the folder for the original and the refactored modules added
-    ModulePath = code:get_path(),
-    OldModules = ["old"] ++ ModulePath,
-    NewModules = ["new"] ++ ModulePath,
-    
+    comp(RefacName, ProjFolder, "refac"),
+
+    {OrigNode, RefacNode} = start_nodes(),
+
     % Generate random data (assume we know the type of data for now) and check
     % if the outputs are equivalent
-    % RES = proper:quickcheck(?FORALL(I, integer(), prop_same_output(OldModules, NewModules, test, f_old, f_new, [I]))), % TODO Give back the minimal input that falsifies the assertion
-    RES = proper:quickcheck(?FORALL(L, list(integer()), prop_same_output(OldModules, NewModules, test, f_old, f_new, [L]))), % TODO Give back the minimal input that falsifies the assertion
+    % RES = proper:quickcheck(?FORALL(I, integer(), prop_same_output(OrigNode, RefacNode, test, f_old, f_new, [I]))), % TODO Give back the minimal input that falsifies the assertion
+    RES = proper:quickcheck(?FORALL(L, list(integer()), prop_same_output(OrigNode, RefacNode, test, f_old, f_new, [L]))), % TODO Give back the minimal input that falsifies the assertion
 
     file:set_cwd(".."),
     cleanup(),
-    code:set_path(ModulePath),
+    stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler), % TODO
     RES.
 
-prop_same_output(OldPath, NewPath, Module, OldName, NewName, Args) ->
-    % Gets the module paths with the respective folders added (old and new)
-    % Also gets the module name and the original and refactored function names
-    % and the input used to evaluate them
-    change_module(OldPath, Module),
-    A = erlang:apply(Module, OldName, Args),
+start_nodes() ->
+    {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", "orig"]}),
+    {_, Refac, _} = peer:start(#{name => refac, connection => 33002, args => ["-pa", "refac"]}),
+    {Orig, Refac}.
 
-    change_module(NewPath, Module),
-    B = erlang:apply(Module, NewName, Args),
+stop_nodes(Orig, Refac) ->
+    peer:stop(Orig),
+    peer:stop(Refac).
+
+prop_same_output(OrigNode, RefacNode, Module, OldName, NewName, Args) ->
+    % Spawns a process on each node that evaluates the function and
+    % sends back the result to this process
+    
+    A = peer:call(OrigNode, Module, OldName, Args),
+    B = peer:call(RefacNode, Module, NewName, Args),
 
     A =:= B.
-
-change_module(Path, Module) ->
-    % TODO It won't be enough to load only the single module that contains
-    % the definition of the renamed function, every relevant module has to be realoaded
-    % as well
-    code:set_path(Path),
-    code:soft_purge(Module),
-    code:load_file(Module).
-
-demo() ->
-    debugger:quick(vsc_equiv, check_equiv, ["79207c7c3", "1b0168", f_old, f_new]).
-
-demo2() ->
-    debugger:quick(vsc_equiv, check_equiv, ["79207c7c3", "5d434d", f_old, f_new]).
-
-demo3() ->
-    check_equiv("468f49", "0f07c3a", f_old, f_new).
