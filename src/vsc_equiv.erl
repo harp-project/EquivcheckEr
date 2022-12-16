@@ -89,10 +89,7 @@ check_equiv(OrigHash, RefacHash) ->
     checkout(RefacHash),
     comp(Modules, "refac"),
 
-    % Hard-coded for now
-    start_nodes(),
-    OrigNode = 'orig@x200s',
-    RefacNode = 'refac@x200s',
+    {OrigNode, RefacNode} = start_nodes(),
 
     % TODO Modify this to run the tests on all the functions, using their spec to generate data
     % Generate random data (assume we know the type of data for now) and check
@@ -102,6 +99,7 @@ check_equiv(OrigHash, RefacHash) ->
 
     file:set_cwd(".."),
     cleanup(),
+    stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler). % TODO
     % RES.
 
