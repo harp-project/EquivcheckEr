@@ -34,10 +34,21 @@ find_callers({FunName, Arity}) ->
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunNameAtom, Arity, [Folder], 4),
     lists:map(fun({{FileName,_,_},_}) -> FileName end, Funs).
 
-% TODO Functions can have the same name with different arity
-get_spec({FunName, _}) ->
-    FileName = get_filename(FunName),
+get_args(FileName, F, A) ->
+    % Gets back the list of arguments for given function, using the -specs statements in the source
+    Specs = lists:map(fun(X) -> parse_spec(X) end, get_specs(FileName)),
+    [{_, ArgList}] = lists:filter(fun({FunName,Args}) -> (FunName =:= F) and
+                                                         ((length(Args)) =:= A) end, Specs),
+    ArgList.
+    
+get_specs(FileName) ->
     {_, File} = file:read_file(FileName),
     Source = erlang:binary_to_list(File),
     Lines = string:split(Source, "\n", all),
-    hd(lists:dropwhile(fun(X) -> not(lists:prefix("-spec", X)) end, Lines)).
+    lists:filter(fun(X) -> lists:prefix("-spec", X) end, Lines).
+
+parse_spec(SpecStr) ->
+    Clean = hd(string:split(string:trim(SpecStr, leading, "-spec "), " ->")),
+    [FunName,ArgsStr] = string:split(Clean, "("),
+    Args = string:split(lists:droplast(ArgsStr), ",", all),
+    {FunName, Args}.
