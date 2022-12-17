@@ -74,11 +74,22 @@ check_equiv(OrigHash, RefacHash) ->
     recreate_project(ProjFolder),
     file:set_cwd("tmp"), % TODO Change this to something like /tmp later
 
-    [OrigFun, RefacFun] = general_refac:diffing(OrigHash, RefacHash),
-    ChangedFile = general_refac:get_filename(element(1,RefacFun)),
-    CallerFiles = general_refac:find_callers(RefacFun),
+    % Module
+    % Function names (old and new)
+    % Arity
+
+    % Caller functions
+    
+    % -spec info
+
+    {ChangedFile, {OrigFun, RefacFun}, Arity} = general_refac:diff_renaming(OrigHash, RefacHash),
+    Callers = general_refac:find_callers({RefacFun, Arity}),
+
+    CallerFiles = lists:map(fun({FileName, _, _}) -> FileName end, Callers),
 
     Modules = lists:uniq([ChangedFile|CallerFiles]),
+
+    Args = lists:map(fun({M,F,A}) -> general_refac:get_args(M,F,A) end, Callers),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
@@ -112,11 +123,11 @@ stop_nodes(Orig, Refac) ->
     peer:stop(Orig),
     peer:stop(Refac).
 
-prop_same_output(OrigNode, RefacNode, Module, OldName, NewName, Args) ->
+prop_same_output(OrigNode, RefacNode, M, F, A) ->
     % Spawns a process on each node that evaluates the function and
     % sends back the result to this process
     
-    A = peer:call(OrigNode, Module, OldName, Args),
-    B = peer:call(RefacNode, Module, NewName, Args),
+    Out1 = peer:call(OrigNode, M, F, A),
+    Out2 = peer:call(RefacNode, M, F, A),
 
-    A =:= B.
+    Out1 =:= Out2.

@@ -3,17 +3,12 @@
 -compile(export_all). % Exports all functions
 -compile(debug_info).
 
-% These all have to be called from the directory of the source code!
+% These all have to be called from the directory of the source code! TODO, pass the folder as argument?
 
-diffing(OrigHash, RefacHash) ->
+diff_renaming(OrigHash, RefacHash) ->
     Out = os:cmd("git diff --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash ++ " | \grep -o '^[-+][^[:space:]]*([^->]*)' | tr -d '+-'"),
-    FunStrs = string:split(string:trim(Out), "\n"),
-    lists:map(fun(X) -> format(X) end, FunStrs).
-
-format(FunStr) ->
-    [Name , ArgStr] = string:split(FunStr, "("),
-    Arit = length(string:split(ArgStr, ",", all)),
-    {Name, Arit}.
+    [OrigFunStr, RefacFunStr] = string:split(string:trim(Out), "\n"),
+    {get_filename(RefacFunStr), {get_name(OrigFunStr), get_name(RefacFunStr)}, get_arity(OrigFunStr)}.
 
 get_name(FunStr) ->
     [Name , _] = string:split(FunStr, "("),
@@ -23,16 +18,19 @@ get_arity(FunStr) ->
     [_ , ArgStr] = string:split(FunStr, "("),
     length(string:split(ArgStr, ",", all)).
 
+% TODO Use wrangler to get this?
+% TODO Doesn't work with nested files
 get_filename(FunName) ->
     string:trim(os:cmd("grep -l '^" ++ FunName ++ "' *")).
 
-% TODO Doesn't work with nested files
 find_callers({FunName, Arity}) ->
     FileName = get_filename(FunName),
     FunNameAtom = list_to_atom(FunName),
     {_, Folder} = file:get_cwd(),
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunNameAtom, Arity, [Folder], 4),
-    lists:map(fun({{FileName,_,_},_}) -> FileName end, Funs).
+    lists:map(fun({{FileName, F, A}, _}) -> {FileName, erlang:atom_to_list(F), A} end, Funs).
+
+%%% -spec related functions
 
 get_args(FileName, F, A) ->
     % Gets back the list of arguments for given function, using the -specs statements in the source
