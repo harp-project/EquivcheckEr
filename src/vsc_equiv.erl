@@ -60,13 +60,13 @@ check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
     % Generate random data (assume we know the type of data for now) and check
     % if the outputs are equivalent
     % RES = proper:quickcheck(?FORALL(I, integer(), prop_same_output(OrigNode, RefacNode, test, f_old, f_new, [I]))), % TODO Give back the minimal input that falsifies the assertion
-    RES = proper:quickcheck(?FORALL(L, list(integer()), prop_same_output(OrigNode, RefacNode, test, OrigName, RefacName, [L]))), % TODO Give back the minimal input that falsifies the assertion
+    % RES = proper:quickcheck(?FORALL(L, list(integer()), prop_same_output(OrigNode, RefacNode, test, OrigName, RefacName, [L]))), % TODO Give back the minimal input that falsifies the assertion
 
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
-    application:stop(wrangler), % TODO
-    RES.
+    application:stop(wrangler). % TODO
+    %RES.
 
 check_equiv(OrigHash, RefacHash) ->
     application:start(wrangler), % TODO
@@ -89,8 +89,6 @@ check_equiv(OrigHash, RefacHash) ->
 
     Modules = lists:uniq([ChangedFile|CallerFiles]),
 
-    Args = lists:map(fun({M,F,A}) -> general_refac:get_args(M,F,A) end, Callers),
-
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
     % function repeatedly side-by-side
@@ -102,17 +100,25 @@ check_equiv(OrigHash, RefacHash) ->
 
     {OrigNode, RefacNode} = start_nodes(),
 
-    % TODO Modify this to run the tests on all the functions, using their spec to generate data
-    % Generate random data (assume we know the type of data for now) and check
-    % if the outputs are equivalent
-    % RES = proper:quickcheck(?FORALL(I, integer(), prop_same_output(OrigNode, RefacNode, test, f_old, f_new, [I]))), % TODO Give back the minimal input that falsifies the assertion
-    % RES = proper:quickcheck(?FORALL(L, list(integer()), prop_same_output(OrigNode, RefacNode, test, OrigName, RefacName, [L]))), % TODO Give back the minimal input that falsifies the assertion
+    % Contains all the functions that call the renamed one {Module, Function, PropEr Type}
+    Funs = lists:map(fun({FileName,F,A}) -> {get_module(FileName),erlang:list_to_atom(F),get_type(hd(general_refac:get_args(FileName,F,A)))} end, Callers),
+
+    lists:map(fun({M,F,Type}) -> proper:quickcheck(?FORALL(X, Type, prop_same_output(OrigNode, RefacNode, M, F, [X]))) end, Funs),
 
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler). % TODO
     % RES.
+
+get_type(T) ->
+    if
+        T =:= "list(integer())" -> proper_types:list(integer());
+        T =:= "integer()" -> proper_types:integer()
+    end.
+
+get_module(FileName) ->
+    erlang:list_to_atom(hd(string:split(lists:last(string:split(FileName,"/",all)),"."))).
 
 start_nodes() ->
     {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", "orig"]}),
