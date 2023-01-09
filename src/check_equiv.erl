@@ -1,4 +1,4 @@
--module(vsc_equiv).
+-module(check_equiv).
 -compile(export_all). % Exports all functions
 -compile(debug_info).
 
@@ -20,12 +20,6 @@ comp(Modules, DirName) ->
 
 show_result(Res) ->
     io:format("Results: ~p~n", [Res]).
-
-get_type(T) ->
-    if
-        T =:= "list(integer())" -> proper_types:list(integer());
-        T =:= "integer()" -> proper_types:integer()
-    end.
 
 get_module(FileName) ->
     erlang:list_to_atom(hd(string:split(lists:last(string:split(FileName,"/",all)),"."))).
@@ -75,7 +69,7 @@ check_equiv(OrigHash, RefacHash) ->
     {OrigNode, RefacNode} = start_nodes(),
 
     % Contains all the functions that call the renamed one {Module, Function, PropEr Type}
-    Funs = lists:map(fun({FileName, F, A}) -> {get_module(FileName), erlang:list_to_atom(F), get_type(hd(general_refac:get_args(FileName, F, A)))} end, Callers),
+    Funs = lists:map(fun({FileName, F, A}) -> {get_module(FileName), erlang:list_to_atom(F), typing:get_type(hd(general_refac:get_args(FileName, F, A)))} end, Callers),
 
     lists:map(fun({FileName, F, A}) -> general_refac:get_args(FileName, F, A) end, Callers),
 
