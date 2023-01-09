@@ -38,7 +38,7 @@ get_args(FileName, F, A) ->
     [{_, ArgList}] = lists:filter(fun({FunName,Args}) -> (FunName =:= F) and
                                                          ((length(Args)) =:= A) end, Specs),
     ArgList.
-    
+
 get_specs(FileName) ->
     {_, File} = file:read_file(FileName),
     Source = erlang:binary_to_list(File),
@@ -46,7 +46,7 @@ get_specs(FileName) ->
     lists:filter(fun(X) -> lists:prefix("-spec", X) end, Lines).
 
 parse_spec(SpecStr) ->
-    Clean = hd(string:split(string:trim(SpecStr, leading, "-spec "), " ->")),
+    Clean = hd(string:split(string:slice(SpecStr, 6), " ->")),
     [FunName,ArgsStr] = string:split(Clean, "("),
     Args = string:split(lists:droplast(ArgsStr), ",", all),
     {FunName, Args}.

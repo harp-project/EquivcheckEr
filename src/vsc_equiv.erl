@@ -34,11 +34,11 @@ comp(FunName, ProjFolder, DirName) ->
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1("test.erl", FunName, 1, [ProjFolder], 4), % TODO Get module name somehow
     Modules = lists:uniq(lists:map(fun(X) -> element(1, element(1, X)) end, Funs)),
     file:make_dir(DirName),
-    lists:map(fun(X) -> compile:file(X, {outdir, DirName}) end, Modules).
+    lists:map(fun(X) -> compile:file(X) end, Modules).
 
 comp(Modules, DirName) ->
     file:make_dir(DirName),
-    lists:map(fun(X) -> compile:file(X, {outdir, DirName}) end, Modules).
+    lists:map(fun(X) -> compile:file(X, [{outdir, DirName}, {warn_format, 0}]) end, Modules).
 
 check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
     application:start(wrangler), % TODO
@@ -71,16 +71,9 @@ check_equiv(OrigHash, RefacHash, OrigName, RefacName) ->
 check_equiv(OrigHash, RefacHash) ->
     application:start(wrangler), % TODO
     {_, ProjFolder} = file:get_cwd(),
+
     recreate_project(ProjFolder),
     file:set_cwd("tmp"), % TODO Change this to something like /tmp later
-
-    % Module
-    % Function names (old and new)
-    % Arity
-
-    % Caller functions
-    
-    % -spec info
 
     {ChangedFile, {OrigFun, RefacFun}, Arity} = general_refac:diff_renaming(OrigHash, RefacHash),
     Callers = general_refac:find_callers({RefacFun, Arity}),
@@ -101,15 +94,23 @@ check_equiv(OrigHash, RefacHash) ->
     {OrigNode, RefacNode} = start_nodes(),
 
     % Contains all the functions that call the renamed one {Module, Function, PropEr Type}
-    Funs = lists:map(fun({FileName,F,A}) -> {get_module(FileName),erlang:list_to_atom(F),get_type(hd(general_refac:get_args(FileName,F,A)))} end, Callers),
+    Funs = lists:map(fun({FileName, F, A}) -> {get_module(FileName), erlang:list_to_atom(F), get_type(hd(general_refac:get_args(FileName, F, A)))} end, Callers),
 
-    lists:map(fun({M,F,Type}) -> proper:quickcheck(?FORALL(X, Type, prop_same_output(OrigNode, RefacNode, M, F, [X]))) end, Funs),
+    lists:map(fun({FileName, F, A}) -> general_refac:get_args(FileName, F, A) end, Callers),
+
+    Options = [quiet, long_result],
+    Res = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, lists:map(fun({M, F, Type}) -> {M, F, proper:quickcheck(?FORALL(X, Type, prop_same_output(OrigNode, RefacNode, M, F, [X])), Options)} end, Funs)),
 
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
-    application:stop(wrangler). % TODO
-    % RES.
+    application:stop(wrangler), % TODO
+    Res.
+
+show_result(Res) ->
+    io:format("Results: ~p~n", [Res]).
+
+% TODO find some bigger erlang project with refactorings that can be tested
 
 get_type(T) ->
     if
@@ -133,6 +134,7 @@ prop_same_output(OrigNode, RefacNode, M, F, A) ->
     % Spawns a process on each node that evaluates the function and
     % sends back the result to this process
     
+    % TODO Try peer:cast function
     Out1 = peer:call(OrigNode, M, F, A),
     Out2 = peer:call(RefacNode, M, F, A),
 
