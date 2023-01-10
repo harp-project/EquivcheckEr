@@ -18,7 +18,28 @@ demo4() ->
     debugger:quick(vsc_equiv, check_equiv, ["468f4", "be6b6"]).
 
 demo5() ->
-    debugger:quick(vsc_equiv, check_equiv, ["6f5871924ea", "2c5911a7847b"]).
+    vsc_equiv:check_equiv("6f5871924ea", "cbf1e19c9").
+
+demo5_debug() ->
+    debugger:quick(vsc_equiv, check_equiv, ["6f5871924ea", "cbf1e19c9"]).
+
+demo6() ->
+    vsc_equiv:show_result(vsc_equiv:check_equiv("c147579ce7", "d568fc4")).
+
+demo6_db() ->
+    debugger:quick(vsc_equiv, check_equiv, ["c147579ce7", "d568fc4"]).
+
+demo7() ->
+    vsc_equiv:show_result(vsc_equiv:check_equiv("6139a061", "827c5b800")).
+
+demo7_db() ->
+    debugger:quick(vsc_equiv, check_equiv, ["6139a061", "827c5b800"]).
+
+demo8() ->
+    vsc_equiv:show_result(check_equiv:check_equiv("cb78ac4", "640c556e3d")).
+
+demo8_db() ->
+    debugger:quick(check_equiv, check_equiv, ["cb78ac43", "640c556e"]).
 
 bench(Count) ->
     run(Count) / Count.
