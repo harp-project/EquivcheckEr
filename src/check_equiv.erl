@@ -50,12 +50,10 @@ check_equiv(OrigHash, RefacHash) ->
     copy_project(ProjFolder),
     file:set_cwd("tmp"),
 
-    {ChangedFile, {OrigFun, RefacFun}, Arity} = general_refac:diff_renaming(OrigHash, RefacHash),
-    Callers = general_refac:find_callers({RefacFun, Arity}),
+    Diff_Output = os:cmd("git diff --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
+    {Callee, Callers} = scoping:scope(Diff_Output),
 
-    CallerFiles = lists:map(fun({FileName, _, _}) -> FileName end, Callers),
-
-    Modules = lists:uniq([ChangedFile|CallerFiles]),
+    Modules = lists:map(fun({Module, _, _}) -> Module end, [Callee|Callers]),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
@@ -71,7 +69,7 @@ check_equiv(OrigHash, RefacHash) ->
     % Contains all the functions that call the renamed one {Module, Function, PropEr Type}
     Funs = lists:map(fun({FileName, F, A}) -> {get_module(FileName), erlang:list_to_atom(F), typing:get_type(hd(general_refac:get_args(FileName, F, A)))} end, Callers),
 
-    lists:map(fun({FileName, F, A}) -> general_refac:get_args(FileName, F, A) end, Callers),
+    % lists:map(fun({FileName, F, A}) -> general_refac:get_args(FileName, F, A) end, Callers),
 
     Options = [quiet, long_result],
     Res = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, lists:map(fun({M, F, Type}) -> {M, F, proper:quickcheck(?FORALL(X, Type, prop_same_output(OrigNode, RefacNode, M, F, [X])), Options)} end, Funs)),
