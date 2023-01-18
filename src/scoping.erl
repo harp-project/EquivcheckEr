@@ -47,12 +47,19 @@ renaming(Parsed_Diff) ->
     Changed = lists:map(fun({File,Lines}) -> {File, lists:filter(fun(Line) -> match_renaming(Line) end, Lines)} end, Parsed_Diff),
     [{File, Funs}] = lists:filter(fun({_,List}) -> not(empty(List)) end, Changed),
     [{OldName, Arity}, {NewName, _}] = lists:map(fun([_|FunStr]) -> {get_name(FunStr), get_arity(FunStr)} end, Funs),
-    Callee = {File, NewName, Arity},
-    Callers = find_callers(Callee),
+    Callee = {get_module(File), NewName, Arity},
+    Callers = find_callers({File, NewName, Arity}),
     {Callee, Callers}.
 
 find_callers({FileName, FunName, Arity}) ->
     FunNameAtom = list_to_atom(FunName),
     {_, Folder} = file:get_cwd(),
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunNameAtom, Arity, [Folder], 4),
-    lists:map(fun({{FileName, F, A}, _}) -> {FileName, erlang:atom_to_list(F), A} end, Funs).
+    lists:map(fun({{FileName, F, A}, _}) -> {get_module(FileName), erlang:atom_to_list(F), A} end, Funs).
+
+extract_files({Callee, Callers}) ->
+    Files = lists:map(fun({Module, _, _}) -> erlang:atom_to_list(Module) ++ ".erl" end, [Callee|Callers]),
+    lists:uniq(Files).
+
+get_module(FileName) ->
+    erlang:list_to_atom(hd(string:split(lists:last(string:split(FileName,"/",all)),"."))).

@@ -21,9 +21,6 @@ comp(Modules, DirName) ->
 show_result(Res) ->
     io:format("Results: ~p~n", [Res]).
 
-get_module(FileName) ->
-    erlang:list_to_atom(hd(string:split(lists:last(string:split(FileName,"/",all)),"."))).
-
 start_nodes() ->
     {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", "orig"]}),
     {_, Refac, _} = peer:start(#{name => refac, connection => 33002, args => ["-pa", "refac"]}),
@@ -53,21 +50,22 @@ check_equiv(OrigHash, RefacHash) ->
     Diff_Output = os:cmd("git diff --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
     {Callee, Callers} = scoping:scope(Diff_Output),
 
-    Modules = lists:map(fun({Module, _, _}) -> Module end, [Callee|Callers]),
+    % Gets the name of files that have to be compiled
+    Files = scoping:extract_files({Callee, Callers}),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
     % function repeatedly side-by-side
     checkout(OrigHash),
-    comp(Modules, "orig"),
+    comp(Files, "orig"),
 
     checkout(RefacHash),
-    comp(Modules, "refac"),
+    comp(Files, "refac"),
 
     {OrigNode, RefacNode} = start_nodes(),
 
     % Contains all the functions that call the renamed one {Module, Function, PropEr Type}
-    Funs = lists:map(fun({FileName, F, A}) -> {get_module(FileName), erlang:list_to_atom(F), typing:get_type({get_module(FileName), hd(typing:get_args(FileName, F, A))})} end, Callers),
+    Funs = typing:add_types(Callers),
 
     Options = [quiet, long_result],
     Res = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, lists:map(fun({M, F, Type}) -> {M, F, proper:quickcheck(?FORALL(X, Type, prop_same_output(OrigNode, RefacNode, M, F, [X])), Options)} end, Funs)),

@@ -9,20 +9,24 @@
 
 -include_lib("proper/include/proper.hrl").
 
-get_type({Mod, TypeStr}) ->
+add_types(Funs) ->
+    lists:map(fun({Module, F, A}) -> {Module, erlang:list_to_atom(F), get_type({Module, hd(get_args(Module, F, A))})} end, Funs).
+
+get_type({Module, TypeStr}) ->
     proper_typeserver:start(),
-    {_, Type} = proper_typeserver:translate_type({Mod, TypeStr}),
+    {_, Type} = proper_typeserver:translate_type({Module, TypeStr}),
     proper_typeserver:stop(),
     Type.
 
-get_args(FileName, F, A) ->
+get_args(Module, F, A) ->
     % Gets back the list of arguments for given function, using the -specs statements in the source
-    Specs = lists:map(fun(X) -> parse_spec(X) end, get_specs(FileName)),
+    Specs = lists:map(fun(X) -> parse_spec(X) end, get_specs(Module)),
     [{_, ArgList}] = lists:filter(fun({FunName,Args}) -> (FunName =:= F) and
                                                          ((length(Args)) =:= A) end, Specs),
     ArgList.
 
-get_specs(FileName) ->
+get_specs(Module) ->
+    FileName = erlang:atom_to_list(Module) ++ ".erl",
     {_, File} = file:read_file(FileName),
     Source = erlang:binary_to_list(File),
     Lines = string:split(Source, "\n", all),
