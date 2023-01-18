@@ -9,12 +9,11 @@
 
 -include_lib("proper/include/proper.hrl").
 
-get_type(T) ->
-    if
-        T =:= "list(integer())" -> proper_types:list(integer());
-        T =:= "integer()" -> proper_types:integer()
-    end.
-
+get_type({Mod, TypeStr}) ->
+    proper_typeserver:start(),
+    {_, Type} = proper_typeserver:translate_type({Mod, TypeStr}),
+    proper_typeserver:stop(),
+    Type.
 
 get_args(FileName, F, A) ->
     % Gets back the list of arguments for given function, using the -specs statements in the source

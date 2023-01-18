@@ -67,9 +67,7 @@ check_equiv(OrigHash, RefacHash) ->
     {OrigNode, RefacNode} = start_nodes(),
 
     % Contains all the functions that call the renamed one {Module, Function, PropEr Type}
-    Funs = lists:map(fun({FileName, F, A}) -> {get_module(FileName), erlang:list_to_atom(F), typing:get_type(hd(general_refac:get_args(FileName, F, A)))} end, Callers),
-
-    % lists:map(fun({FileName, F, A}) -> general_refac:get_args(FileName, F, A) end, Callers),
+    Funs = lists:map(fun({FileName, F, A}) -> {get_module(FileName), erlang:list_to_atom(F), typing:get_type({get_module(FileName), hd(typing:get_args(FileName, F, A))})} end, Callers),
 
     Options = [quiet, long_result],
     Res = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, lists:map(fun({M, F, Type}) -> {M, F, proper:quickcheck(?FORALL(X, Type, prop_same_output(OrigNode, RefacNode, M, F, [X])), Options)} end, Funs)),
