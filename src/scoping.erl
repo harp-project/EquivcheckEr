@@ -7,13 +7,23 @@
 -compile(export_all). % Exports all functions
 -compile(debug_info).
 
-% These all have to be called from the directory of the source code! TODO, pass the folder as argument?
+% -type imm_instance() :: proper_types:raw_type()
+% 		      | instance()
+% 		      | {'$used', imm_instance(), imm_instance()}
+% 		      | {'$to_part', imm_instance()}.
+%
+% {"FileName", "FuncName", Arity}
 
+% These all have to be called from the directory of the source code! TODO, pass the folder as argument?
+% -spec scope(string()) -> {
 scope(Diff) ->
     % TODO For new, we only consider function renaming,
     % but later other kinds of refactorings will be added
     Parsed = parse_diff(Diff),
-    renaming(Parsed).
+    {Callee, Callers} = renaming(Parsed),
+    Files = extract_files({Callee, Callers}),
+    Functions = typing:add_types(Callers),
+    {Files, Functions}.
 
 parse_diff(Diff) ->
     [_|Files] = string:split(Diff, "diff --git ", all),
@@ -43,6 +53,7 @@ get_arity(FunStr) ->
     [_ , ArgStr] = string:split(FunStr, "("),
     length(string:split(ArgStr, ",", all)).
 
+% [{"filename.erl", ["line"]}] -> {{"filename.erl", "funname", 0}, [{"filename.erl", "funname", 0}]}
 renaming(Parsed_Diff) ->
     Changed = lists:map(fun({File,Lines}) -> {File, lists:filter(fun(Line) -> match_renaming(Line) end, Lines)} end, Parsed_Diff),
     [{File, Funs}] = lists:filter(fun({_,List}) -> not(empty(List)) end, Changed),

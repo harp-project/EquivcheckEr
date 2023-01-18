@@ -48,10 +48,9 @@ check_equiv(OrigHash, RefacHash) ->
     file:set_cwd("tmp"),
 
     Diff_Output = os:cmd("git diff --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
-    {Callee, Callers} = scoping:scope(Diff_Output),
 
-    % Gets the name of files that have to be compiled
-    Files = scoping:extract_files({Callee, Callers}),
+    % Gets back the files that have to be compiled, and the functions that have to be tested
+    {Files, Funs} = scoping:scope(Diff_Output),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
@@ -63,9 +62,6 @@ check_equiv(OrigHash, RefacHash) ->
     comp(Files, "refac"),
 
     {OrigNode, RefacNode} = start_nodes(),
-
-    % Contains all the functions that call the renamed one {Module, Function, PropEr Type}
-    Funs = typing:add_types(Callers),
 
     Options = [quiet, long_result],
     Res = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, lists:map(fun({M, F, Type}) -> {M, F, proper:quickcheck(?FORALL(X, Type, prop_same_output(OrigNode, RefacNode, M, F, [X])), Options)} end, Funs)),
