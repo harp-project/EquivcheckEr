@@ -7,11 +7,16 @@
 -compile(debug_info).
 
 -spec add_types([{atom(), string(), integer()}]) ->
-    [{atom(), atom(), proper_types:rich_result(proper_types:fin_type())}].
+    [{atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}].
 add_types(Funs) ->
-    lists:map(fun({Module, F, A}) -> {Module,
-                                      erlang:list_to_atom(F), % TODO Make it work for multiple arguments
-                                      get_type({Module, hd(get_args(Module, F, A))})} end,
+    lists:map(fun({Module, F, A}) ->
+                      {Module,
+                       erlang:list_to_atom(F),
+                       lists:map(fun(Arg) ->
+                                         get_type({Module, Arg})
+                                 end,
+                                 get_args(Module, F, A))}
+              end,
               Funs).
 
 -spec get_type({atom(), string()}) ->

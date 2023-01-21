@@ -70,7 +70,7 @@ check_equiv(OrigHash, RefacHash) ->
     {OrigNode, RefacNode} = start_nodes(),
 
     Options = [quiet, long_result],
-    Res = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, lists:map(fun({M, F, Type}) -> {M, F, proper:quickcheck(?FORALL(X, Type, prop_same_output(OrigNode, RefacNode, M, F, [X])), Options)} end, Funs)),
+    Res = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, lists:map(fun({M, F, Type}) -> {M, F, proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options)} end, Funs)),
 
     file:set_cwd(".."),
     cleanup(),
