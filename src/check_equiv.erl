@@ -27,7 +27,7 @@ show_result(Res) ->
     io:format("Results: ~p~n", [Res]).
 
 start_nodes() ->
-    % TODO Handle error
+    % TODO Handle error, use other port if its already used
     {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", "orig"]}),
     {_, Refac, _} = peer:start(#{name => refac, connection => 33002, args => ["-pa", "refac"]}),
     {Orig, Refac}.
@@ -36,12 +36,11 @@ stop_nodes(Orig, Refac) ->
     peer:stop(Orig),
     peer:stop(Refac).
 
+% Spawns a process on each node that evaluates the function and
+% sends back the result to this process
 -spec prop_same_output(pid(), pid(), atom(), atom(), [term()]) -> boolean().
 prop_same_output(OrigNode, RefacNode, M, F, A) ->
-    % Spawns a process on each node that evaluates the function and
-    % sends back the result to this process
     
-    % TODO Try peer:cast function
     Out1 = peer:call(OrigNode, M, F, A),
     Out2 = peer:call(RefacNode, M, F, A),
 

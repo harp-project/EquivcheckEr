@@ -9,7 +9,10 @@
 -spec add_types([{atom(), string(), integer()}]) ->
     [{atom(), atom(), proper_types:rich_result(proper_types:fin_type())}].
 add_types(Funs) ->
-    lists:map(fun({Module, F, A}) -> {Module, erlang:list_to_atom(F), get_type({Module, hd(get_args(Module, F, A))})} end, Funs).
+    lists:map(fun({Module, F, A}) -> {Module,
+                                      erlang:list_to_atom(F), % TODO Make it work for multiple arguments
+                                      get_type({Module, hd(get_args(Module, F, A))})} end,
+              Funs).
 
 -spec get_type({atom(), string()}) ->
     proper_types:rich_result(proper_types:fin_type()).
@@ -23,10 +26,14 @@ get_type({Module, TypeStr}) ->
 -spec get_args(atom(), string(), integer()) -> [string()].
 get_args(Module, F, A) ->
     Specs = lists:map(fun(X) -> parse_spec(X) end, get_specs(Module)),
-    [{_, ArgList}] = lists:filter(fun({FunName,Args}) -> (FunName =:= F) and
-                                                         ((length(Args)) =:= A) end, Specs),
-    ArgList.
+    Funs = lists:search(fun({FunName,Args}) -> (FunName =:= F) and
+                                               ((length(Args)) =:= A) end, Specs),
+    case Funs of
+        {value, {_, ArgList}} -> ArgList;
+        false                 -> [] % TODO Handle this case
+    end.
 
+% Extracts all the function specs from a given module
 -spec get_specs(atom()) -> [string()].
 get_specs(Module) ->
     FileName = erlang:atom_to_list(Module) ++ ".erl",
@@ -35,6 +42,7 @@ get_specs(Module) ->
     Lines = string:split(Source, "\n", all),
     lists:filter(fun(X) -> lists:prefix("-spec", X) end, Lines).
 
+% Given a function spec, gives back the name and input types
 -spec parse_spec(string()) -> {string(), [string()]}.
 parse_spec(SpecStr) ->
     Clean = hd(string:split(string:slice(SpecStr, 6), " ->")),
