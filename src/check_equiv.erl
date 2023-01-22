@@ -52,6 +52,7 @@ check_equiv(OrigHash, RefacHash) ->
 
     copy_project(ProjFolder),
     file:set_cwd("tmp"),
+    checkout(RefacHash), % Scoping needs the repo to be at the commit containing the refactored code
 
     Diff_Output = os:cmd("git diff --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
 
