@@ -78,4 +78,4 @@ extract_files({Callee, Callers}) ->
 
 -spec get_module(string()) -> atom().
 get_module(FileName) ->
-    erlang:list_to_atom(hd(string:split(lists:last(string:split(FileName,"/",all)),"."))).
+    erlang:list_to_atom(filename:basename(FileName, ".erl")).

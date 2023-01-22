@@ -43,7 +43,7 @@ get_args(Module, F, A) ->
 get_specs(Module) ->
     FileName = erlang:atom_to_list(Module) ++ ".erl",
     {_, File} = file:read_file(FileName),
-    Source = erlang:binary_to_list(File),
+    Source = binary:bin_to_list(File),
     Lines = string:split(Source, "\n", all),
     lists:filter(fun(X) -> lists:prefix("-spec", X) end, Lines).
 
