@@ -40,6 +40,6 @@ get_args_test_() ->
    ?_assertEqual(["integer()","string()"], get_args(source(), "r", 2))].
 
 parse_spec_test_() ->
-  [?_assertEqual({"p", [""]}, parse_spec("-spec p() -> integer().")),
+  [?_assertEqual({"p", []}, parse_spec("-spec p() -> integer().")),
    ?_assertEqual({"q", ["list(integer())"]}, parse_spec("-spec q(list(integer())) -> integer().")),
    ?_assertEqual({"r", ["integer()","string()"]}, parse_spec("-spec r(integer(),string()) -> integer()."))].

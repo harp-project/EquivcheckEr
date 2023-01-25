@@ -51,6 +51,8 @@ get_specs(Source) ->
 -spec parse_spec(string()) -> {string(), [string()]}.
 parse_spec(SpecStr) ->
     Clean = hd(string:split(string:slice(SpecStr, 6), " ->")),
-    [FunName,ArgsStr] = string:split(Clean, "("),
-    Args = string:split(lists:droplast(ArgsStr), ",", all),
-    {FunName, Args}.
+    [FunName, ArgsStr] = string:split(Clean, "("),
+    case lists:droplast(ArgsStr) of
+        []   -> {FunName, ""}; % Nullary function
+        Args -> {FunName, string:split(Args, ",", all)}
+    end.
