@@ -48,6 +48,7 @@ prop_same_output(OrigNode, RefacNode, M, F, A) ->
 
 check_equiv(OrigHash, RefacHash) ->
     application:start(wrangler), % TODO
+    proper_typeserver:start(),
     {_, ProjFolder} = file:get_cwd(),
 
     copy_project(ProjFolder),
@@ -77,4 +78,5 @@ check_equiv(OrigHash, RefacHash) ->
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler), % TODO
+    proper_typeserver:stop(),
     Res.

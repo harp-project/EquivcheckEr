@@ -25,9 +25,7 @@ add_type({Module, F, A}) ->
 -spec get_type({atom(), string()}) ->
     proper_types:rich_result(proper_types:fin_type()).
 get_type({Module, TypeStr}) ->
-    proper_typeserver:start(),
     {_, Type} = proper_typeserver:translate_type({Module, TypeStr}),
-    proper_typeserver:stop(),
     Type.
 
 % Gets back the list of arguments for given function, using the -specs statements in the source
