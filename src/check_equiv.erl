@@ -41,8 +41,17 @@ stop_nodes(Orig, Refac) ->
 -spec prop_same_output(pid(), pid(), atom(), atom(), [term()]) -> boolean().
 prop_same_output(OrigNode, RefacNode, M, F, A) ->
     
-    Out1 = peer:call(OrigNode, M, F, A),
-    Out2 = peer:call(RefacNode, M, F, A),
+    Out1 = try peer:call(OrigNode, M, F, A) of
+               Val -> {normal, Val}
+           catch
+               error:Error  -> {error, Error}
+           end,
+
+    Out2 = try peer:call(RefacNode, M, F, A) of
+               Val2 -> {normal, Val2}
+           catch
+               error:Error2  -> {error, Error2}
+           end,
 
     Out1 =:= Out2.
 
