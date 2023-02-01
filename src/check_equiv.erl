@@ -6,6 +6,8 @@
 -include_lib("proper/include/proper.hrl").
 
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
+-define(ORIGINAL_CODE_FOLDER, "orig").
+-define(REFACTORED_CODE_FOLDER, "refac").
 
 -spec copy_project(string()) -> string().
 copy_project(ProjFolder) ->
@@ -30,30 +32,29 @@ show_result(Res) ->
 
 start_nodes() ->
     % TODO Handle error, use other port if its already used
-    {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", "orig"]}),
-    {_, Refac, _} = peer:start(#{name => refac, connection => 33002, args => ["-pa", "refac"]}),
+    {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", ?ORIGINAL_CODE_FOLDER]}),
+    {_, Refac, _} = peer:start(#{name => refac, connection => 33002, args => ["-pa", ?REFACTORED_CODE_FOLDER]}),
     {Orig, Refac}.
 
 stop_nodes(Orig, Refac) ->
     peer:stop(Orig),
     peer:stop(Refac).
 
+-spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
+eval_func(Node, M, F, A) ->
+    try peer:call(Node, M, F, A) of
+        Val -> {normal, Val}
+    catch
+        error:Error -> {error, Error}
+    end.
+
 % Spawns a process on each node that evaluates the function and
 % sends back the result to this process
 -spec prop_same_output(pid(), pid(), atom(), atom(), [term()]) -> boolean().
 prop_same_output(OrigNode, RefacNode, M, F, A) ->
     
-    Out1 = try peer:call(OrigNode, M, F, A) of
-               Val -> {normal, Val}
-           catch
-               error:Error  -> {error, Error}
-           end,
-
-    Out2 = try peer:call(RefacNode, M, F, A) of
-               Val2 -> {normal, Val2}
-           catch
-               error:Error2  -> {error, Error2}
-           end,
+    Out1 = eval_func(OrigNode, M, F, A),
+    Out2 = eval_func(RefacNode, M, F, A),
 
     Out1 =:= Out2.
 
@@ -75,10 +76,10 @@ check_equiv(OrigHash, RefacHash) ->
     % This is needed because QuickCheck has to evaluate to old and the new
     % function repeatedly side-by-side
     checkout(OrigHash),
-    compile(Files, "orig"),
+    compile(Files, ?ORIGINAL_CODE_FOLDER),
 
     checkout(RefacHash),
-    compile(Files, "refac"),
+    compile(Files, ?REFACTORED_CODE_FOLDER),
 
     {OrigNode, RefacNode} = start_nodes(),
 
