@@ -5,10 +5,12 @@
 
 -include_lib("proper/include/proper.hrl").
 
+-define(TEMP_FOLDER, "tmp"). % TODO use /tmp
+
 -spec copy_project(string()) -> string().
 copy_project(ProjFolder) ->
-    file:make_dir("tmp"), % TODO use /tmp
-    os:cmd("git clone " ++ ProjFolder ++ " tmp").
+    file:make_dir(?TEMP_FOLDER),
+    os:cmd("git clone " ++ ProjFolder ++ " " ++ ?TEMP_FOLDER).
 
 -spec checkout(string()) -> string().
 checkout(Hash) ->
@@ -16,7 +18,7 @@ checkout(Hash) ->
 
 cleanup() ->
     % TODO Handle error
-    file:del_dir_r("tmp").
+    file:del_dir_r(?TEMP_FOLDER).
 
 compile(Modules, DirName) ->
     % TODO Handle error
@@ -61,7 +63,7 @@ check_equiv(OrigHash, RefacHash) ->
     {_, ProjFolder} = file:get_cwd(),
 
     copy_project(ProjFolder),
-    file:set_cwd("tmp"),
+    file:set_cwd(?TEMP_FOLDER),
     checkout(RefacHash), % Scoping needs the repo to be at the commit containing the refactored code
 
     Diff_Output = os:cmd("git diff --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
