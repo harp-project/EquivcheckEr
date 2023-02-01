@@ -58,6 +58,9 @@ prop_same_output(OrigNode, RefacNode, M, F, A) ->
 
     Out1 =:= Out2.
 
+test_function(M, F, Type, OrigNode, RefacNode, Options) ->
+    proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
+
 check_equiv(OrigHash, RefacHash) ->
     application:start(wrangler), % TODO
     proper_typeserver:start(),
@@ -84,11 +87,19 @@ check_equiv(OrigHash, RefacHash) ->
     {OrigNode, RefacNode} = start_nodes(),
 
     Options = [quiet, long_result],
-    Res = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, lists:map(fun({M, F, Type}) -> {M, F, proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options)} end, Funs)),
+
+    % A result is a tuple: {Module, Function, Counterexample}
+    % If no counterexample is found, the third value is 'true' instead
+    Res = lists:map(fun({M, F, Type}) ->
+                            {M, F, test_function(M, F, Type, OrigNode, RefacNode, Options)}
+                    end, Funs),
+
+    % Drop the passed results, we need the counterexamples
+    FailedFuns = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, Res),
 
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler), % TODO
     proper_typeserver:stop(),
-    Res.
+    FailedFuns.
