@@ -31,8 +31,8 @@ extract_file(DiffLine) ->
     {match, [[FileName]]} = re:run(DiffLine,".*/(.*\.erl).*", [global, {capture, [1], list}]),
     FileName.
 
--spec match_renaming(string()) -> boolean().
-match_renaming(Line) ->
+-spec is_function_def(string()) -> boolean().
+is_function_def(Line) ->
     % Regexp for finding top-level function definitions
     case re:run(Line, "^[\\+-][^-[:space:]].* ->", []) of
         nomatch -> false;
@@ -60,7 +60,7 @@ get_arity(FunStr) ->
 
 -spec renaming({string(), [string()]}) -> {fun_info(), [fun_info()]}.
 renaming(Parsed_Diff) ->
-    Changed = lists:map(fun({File,Lines}) -> {File, lists:filter(fun(Line) -> match_renaming(Line) end, Lines)} end, Parsed_Diff),
+    Changed = lists:map(fun({File, Lines}) -> {File, lists:filter(fun(Line) -> is_function_def(Line) end, Lines)} end, Parsed_Diff),
     [{File, Funs}] = lists:filter(fun({_,List}) -> not(empty(List)) end, Changed),
     [{OldName, Arity}, {NewName, _}] = lists:map(fun([_|FunStr]) -> {get_name(FunStr), get_arity(FunStr)} end, Funs),
     Callee = {get_module(File), NewName, Arity},
