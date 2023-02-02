@@ -28,7 +28,8 @@ extract_diffs(Diff) ->
 
 -spec extract_file(string()) -> string().
 extract_file(DiffLine) ->
-    {match, [[FileName]]} = re:run(DiffLine,".*/(.*\.erl).*", [global, {capture, [1], list}]),
+    Options = [global, {capture, [1], list}],
+    {match, [[FileName]]} = re:run(DiffLine,".*/(.*\.erl).*", Options),
     FileName.
 
 -spec is_function_def(string()) -> boolean().

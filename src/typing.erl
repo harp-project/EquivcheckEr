@@ -48,9 +48,10 @@ get_specs(Source) ->
 % Given a function spec, gives back the name and input types
 -spec parse_spec(string()) -> {string(), [string()]}.
 parse_spec(SpecStr) ->
-    Clean = hd(string:split(string:slice(SpecStr, 6), " ->")),
-    [FunName, ArgsStr] = string:split(Clean, "("),
-    case lists:droplast(ArgsStr) of
+    Options = [global, {capture, [1,2], list}],
+    {match, [[FunName, ArgsStr]]} = re:run(SpecStr, "-spec (.*?)\\((.*)\\) ->.*", Options),
+    
+    case ArgsStr of
         []   -> {FunName, ""}; % Nullary function
         Args -> {FunName, string:split(Args, ",", all)}
     end.
