@@ -3,8 +3,7 @@
 %% right PropEr type information to them (so that the right generator can be used)
 -module(typing).
 
--compile(export_all). % Exports all functions
--compile(debug_info).
+-export([add_types/1]).
 
 -spec add_types([{atom(), string(), integer()}]) ->
     [{atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}].

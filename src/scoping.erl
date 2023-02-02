@@ -3,8 +3,7 @@
 %% that was done
 -module(scoping).
 
--compile(export_all). % Exports all functions
--compile(debug_info).
+-export([scope/1]).
 
 -type fun_info() :: {atom(), string(), integer()}.
 
@@ -40,13 +39,6 @@ is_function_def(Line) ->
         _       -> true
     end.
 
--spec empty(list()) -> boolean().
-empty(List) ->
-    case List of
-        [] -> true;
-        _  -> false
-    end.
-
 -spec get_name(string()) -> string().
 get_name(FunStr) ->
     Options = [global, {capture, [1], list}],
@@ -63,7 +55,7 @@ get_arity(FunStr) ->
 renaming(Diffs) ->
     % Find files where function definitions have changed
     ChangesByFile = lists:map(fun({File, Lines}) -> {File, lists:filter(fun(Line) -> is_function_def(Line) end, Lines)} end, Diffs),
-    [{File, Funs}] = lists:filter(fun({_,List}) -> not(empty(List)) end, ChangesByFile),
+    [{File, Funs}] = lists:filter(fun({_,List}) -> not(List == []) end, ChangesByFile),
     [{OldName, Arity}, {NewName, _}] = lists:map(fun([_|FunStr]) -> {get_name(FunStr), get_arity(FunStr)} end, Funs),
     Callee = {get_module(File), NewName, Arity},
     Callers = find_callers({File, NewName, Arity}),
