@@ -14,21 +14,22 @@
 scope(Diff) ->
     % TODO For new, we only consider function renaming,
     % but later other kinds of refactorings will be added
-    Parsed = parse_diff(Diff),
-    {Callee, Callers} = renaming(Parsed),
+    Diffs = extract_diffs(Diff),
+    {Callee, Callers} = renaming(Diffs),
     Files = extract_files({Callee, Callers}),
     Functions = typing:add_types(Callers),
     {Files, Functions}.
 
--spec parse_diff(string()) -> {string(), [string()]}.
-parse_diff(Diff) ->
+-spec extract_diffs(string()) -> {string(), [string()]}.
+extract_diffs(Diff) ->
     [_|Files] = string:split(Diff, "diff --git ", all),
     Lines = lists:map(fun(X) -> string:split(X, "\n", all) end, Files),
     lists:map(fun([H|T]) -> {extract_file(H),T} end, Lines).
 
 -spec extract_file(string()) -> string().
 extract_file(DiffLine) ->
-    lists:nth(2, string:split(lists:nth(1, string:split(DiffLine, " ", all)), "/")).
+    {match, [[FileName]]} = re:run(DiffLine,".*/(.*\.erl).*", [global, {capture, [1], list}]),
+    FileName.
 
 -spec match_renaming(string()) -> boolean().
 match_renaming(Line) ->
@@ -47,12 +48,14 @@ empty(List) ->
 
 -spec get_name(string()) -> string().
 get_name(FunStr) ->
-    [Name, _] = string:split(FunStr, "("),
+    Options = [global, {capture, [1], list}],
+    {match, [[Name]]} = re:run(FunStr,"(.*)\\(.*", Options),
     Name.
 
 -spec get_arity(string()) -> string().
 get_arity(FunStr) ->
-    [_ , ArgStr] = string:split(FunStr, "("),
+    Options = [global, {capture, [1], list}],
+    {match, [[ArgStr]]} = re:run(FunStr,".*\\((.*)\\)", Options),
     length(string:split(ArgStr, ",", all)).
 
 -spec renaming({string(), [string()]}) -> {fun_info(), [fun_info()]}.
