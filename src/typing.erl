@@ -5,18 +5,23 @@
 
 -export([add_types/1]).
 
--spec add_types([{atom(), string(), integer()}]) ->
+-type fun_info() :: {atom(), string(), integer()}.
+
+% Gets the list of every function that has to be tested, and
+% pairs it with the right PropEr type information for data generation
+-spec add_types([fun_info()]) ->
     [{atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}].
 add_types(Funs) ->
-    lists:map(fun(F) -> add_type(F) end, Funs).
+    AllSpecs = parse_typer(os:cmd("typer -r .")),
+    lists:map(fun(F) -> add_type(F, AllSpecs) end, Funs).
 
--spec add_type({atom(), string(), integer()}) -> 
+% Gets a single function and finds the types for its arguments
+-spec add_type(fun_info(), [{string(), [string()]}]) -> 
   {atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}.
-add_type({Module, F, A}) ->
+add_type({Module, F, A}, AllSpecs) ->
     FileName = erlang:atom_to_list(Module) ++ ".erl",
-    {_, File} = file:read_file(FileName),
-    Source = binary:bin_to_list(File),
-    Args = get_args(Source, F, A),
+    {_, ModuleSpecs} = lists:keyfind(FileName, 1, AllSpecs),
+    Args = get_args(ModuleSpecs, F, A),
     {Module,
      erlang:list_to_atom(F),
      lists:map(fun(Arg) -> get_type({Module, Arg}) end, Args)}.
@@ -27,22 +32,30 @@ get_type({Module, TypeStr}) ->
     {_, Type} = proper_typeserver:translate_type({Module, TypeStr}),
     Type.
 
+% Parses the output of typer into a list of tuples in the form of {Filename, [Spec lines]}
+-spec parse_typer(string()) -> [{string(), [string()]}].
+parse_typer(TyperOutput) ->
+    Files = string:split(string:trim(TyperOutput), "\n\n", all),
+
+    Options = [global, {capture, [1,2], list}, dotall],
+    Matches = lists:map(fun(FileSpecs) ->
+                        re:run(FileSpecs, ".*File: \"./(.*?)\"\n.*---\n(.*)", Options) end, Files),
+    Specs = lists:map(fun({_, [[File , Specs]]}) ->
+                          {File, Specs} end, Matches),
+
+    lists:map(fun({File, SpecLines}) ->
+                      {File, string:split(SpecLines, "\n", all)} end, Specs).
+
 % Gets back the list of arguments for given function, using the -specs statements in the source
 -spec get_args(string(), string(), integer()) -> [string()].
-get_args(Source, F, A) ->
-    Specs = lists:map(fun(X) -> parse_spec(X) end, get_specs(Source)),
+get_args(SpecStrings, F, A) ->
+    Specs = lists:map(fun(X) -> parse_spec(X) end, SpecStrings),
     Funs = lists:search(fun({FunName,Args}) -> (FunName =:= F) and
                                                ((length(Args)) =:= A) end, Specs),
     case Funs of
         {value, {_, ArgList}} -> ArgList;
         false                 -> [] % TODO Handle this case
     end.
-
-% Extracts all the function specs from a given module
--spec get_specs(string()) -> [string()].
-get_specs(Source) ->
-    Lines = string:split(Source, "\n", all),
-    lists:filter(fun(X) -> lists:prefix("-spec", X) end, Lines).
 
 % Given a function spec, gives back the name and input types
 -spec parse_spec(string()) -> {string(), [string()]}.
