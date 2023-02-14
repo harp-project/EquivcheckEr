@@ -12,8 +12,11 @@
 -spec add_types([fun_info()]) ->
     [{atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}].
 add_types(Funs) ->
-    AllSpecs = parse_typer(os:cmd("typer -r .")),
-    lists:map(fun(F) -> add_type(F, AllSpecs) end, Funs).
+    AllSpecs = parse_typer("something failed\n" ++ os:cmd("typer -r .")),
+    case AllSpecs of
+        typer_error -> lists:map(fun(F) -> add_type_fallback(F) end, Funs);
+        _Otherwise  -> lists:map(fun(F) -> add_type(F, AllSpecs) end, Funs)
+    end.
 
 % Gets a single function and finds the types for its arguments
 -spec add_type(fun_info(), [{string(), [string()]}]) -> 
@@ -26,6 +29,16 @@ add_type({Module, F, A}, AllSpecs) ->
      erlang:list_to_atom(F),
      lists:map(fun(Arg) -> get_type({Module, Arg}) end, Args)}.
 
+% If TypEr fails for some reason, use any() as type
+-spec add_type_fallback(fun_info()) -> 
+  {atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}.
+add_type_fallback({Module, F, A}) ->
+    Args = lists:duplicate(A, "any()"),
+    {Module,
+     erlang:list_to_atom(F),
+     lists:map(fun(Arg) -> get_type({Module, Arg}) end, Args)}.
+
+
 -spec get_type({atom(), string()}) ->
     proper_types:rich_result(proper_types:fin_type()).
 get_type({Module, TypeStr}) ->
@@ -33,18 +46,22 @@ get_type({Module, TypeStr}) ->
     Type.
 
 % Parses the output of typer into a list of tuples in the form of {Filename, [Spec lines]}
--spec parse_typer(string()) -> [{string(), [string()]}].
+-spec parse_typer(string()) -> [{string(), [string()]}] | atom().
 parse_typer(TyperOutput) ->
-    Files = string:split(string:trim(TyperOutput), "\n\n", all),
+    case re:run(TyperOutput, ".*failed.*\n") of
+        {match, _} -> typer_error;
+        _Otherwise ->
+            Files = string:split(string:trim(TyperOutput), "\n\n", all),
 
-    Options = [global, {capture, [1,2], list}, dotall],
-    Matches = lists:map(fun(FileSpecs) ->
-                        re:run(FileSpecs, ".*File: \"./(.*?)\"\n.*---\n(.*)", Options) end, Files),
-    Specs = lists:map(fun({_, [[File , Specs]]}) ->
-                          {File, Specs} end, Matches),
+            Options = [global, {capture, [1,2], list}, dotall],
+            Matches = lists:map(fun(FileSpecs) ->
+                                re:run(FileSpecs, ".*File: \"./(.*?)\"\n.*---\n(.*)", Options) end, Files),
+            Specs = lists:map(fun({_, [[File , Specs]]}) ->
+                                {File, Specs} end, Matches),
 
-    lists:map(fun({File, SpecLines}) ->
-                      {File, string:split(SpecLines, "\n", all)} end, Specs).
+            lists:map(fun({File, SpecLines}) ->
+                            {File, string:split(SpecLines, "\n", all)} end, Specs)
+    end.
 
 % Gets back the list of arguments for given function, using the -specs statements in the source
 -spec get_args(string(), string(), integer()) -> [string()].
