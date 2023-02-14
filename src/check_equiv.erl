@@ -45,7 +45,7 @@ eval_func(Node, M, F, A) ->
     try peer:call(Node, M, F, A) of
         Val -> {normal, Val}
     catch
-        error:Error -> {error, Error}
+        error:Error -> Error
     end.
 
 % Spawns a process on each node that evaluates the function and
