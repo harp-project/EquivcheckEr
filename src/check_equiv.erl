@@ -8,7 +8,6 @@
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
 -define(ORIGINAL_CODE_FOLDER, "orig").
 -define(REFACTORED_CODE_FOLDER, "refac").
--define(PLT_DEFAULT_LOC, "/erlang/.dialyzer_plt").
 
 -spec copy_project(string()) -> string().
 copy_project(ProjFolder) ->
@@ -65,49 +64,8 @@ prop_same_output(OrigNode, RefacNode, M, F, A) ->
 test_function(M, F, Type, OrigNode, RefacNode, Options) ->
     proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
 
-    % 1. Check if we have already generated it
-    % 2. Check if DIALYZER_PLT is set in the env
-    % 3. Check if there is a PLT in the default location (what if there is a very small PLT there?)
-
-
-check_plt() ->
-    % TODO Check the config file for custom location
-    case os:getenv("DIALYZER_PLT") of
-        false ->
-            CacheDir = os:getenv("XDG_CACHE_HOME"), % TODO Not every distro supports it
-            case filelib:is_file(CacheDir ++ ?PLT_DEFAULT_LOC) of
-                true  -> found;
-                false -> not_found
-            end;
-        _Otherwise -> found
-    end.
-
-prompt_for_plt() ->
-    io:format("PLT not found at default locations.~n"),
-    io:format("Either provide a valid location for an already existing PLT,~n"),
-    io:format("or press enter to generate it!~n"),
-    io:get_line("> ").
-
-ensure_plt() ->
-    case check_plt() of
-        found     -> ok;
-        not_found ->
-            case prompt_for_plt() of
-                "\n" -> 
-                    io:format("Generating PLT. This could take a while..."),
-                    os:cmd("dialyzer --build_plt --apps erts kernel stdlib mnesia");
-                Loc  ->
-                    os:putenv("DIALYZER_PLT", string:trim(Loc)), % TODO This has to be save into the config file
-                    DialyzerOutput = os:cmd("dialyzer --check_plt"),
-                    case re:run(DialyzerOutput, ".*Could not find the PLT.*") of
-                        nomatch   -> ok;
-                        {match, _} -> prompt_for_plt()
-                    end
-            end
-    end.
-    
 check_equiv(OrigHash, RefacHash) ->
-    ensure_plt(),
+    typing:ensure_plt(),
     application:start(wrangler), % TODO
     proper_typeserver:start(),
     {_, ProjFolder} = file:get_cwd(),
