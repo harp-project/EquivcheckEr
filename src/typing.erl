@@ -3,7 +3,7 @@
 %% right PropEr type information to them (so that the right generator can be used)
 -module(typing).
 
--export([add_types/1,ensure_plt/0]).
+-export([add_types/1,ensure_plt/1]).
 
 -type fun_info() :: {atom(), string(), integer()}.
 
@@ -89,25 +89,25 @@ parse_spec(SpecStr) ->
 
 % PLT (Persistent Lookup Table) related functions
 
-check_plt() ->
-    % TODO Check the config file for custom location
-    case os:getenv("DIALYZER_PLT") of
-        false ->
-            CacheDir = os:getenv("XDG_CACHE_HOME"), % TODO Not every distro supports it
-            case filelib:is_file(CacheDir ++ ?PLT_DEFAULT_LOC) of
-                true  -> found;
-                false -> not_found
-            end;
-        _Otherwise -> found
-    end.
-
 prompt_for_plt() ->
-    io:format("PLT not found at default locations.~n"),
+    io:format("PLT not found!~n"),
     io:format("Either provide a valid location for an already existing PLT,~n"),
     io:format("or press enter to generate it!~n"),
     io:get_line("> ").
 
-ensure_plt() ->
+
+check_plt() ->
+    DialyzerOutput = os:cmd("dialyzer --check_plt"),
+    case re:run(DialyzerOutput, ".*Could not find the PLT.*") of
+        nomatch   -> found;
+        {match, _} -> not_found
+    end.
+
+ensure_plt(Configs) ->
+    case config:lookup(Configs, "custom_plt_location") of
+        false     -> ok;
+        CustomLoc -> os:putenv("DIALYZER_PLT", string:trim(CustomLoc))
+    end,
     case check_plt() of
         found     -> ok;
         not_found ->
@@ -116,12 +116,9 @@ ensure_plt() ->
                     io:format("Generating PLT. This could take a while..."),
                     os:cmd("dialyzer --build_plt --apps erts kernel stdlib mnesia");
                 Loc  ->
-                    os:putenv("DIALYZER_PLT", string:trim(Loc)), % TODO This has to be saved into the config file
-                    DialyzerOutput = os:cmd("dialyzer --check_plt"),
-                    case re:run(DialyzerOutput, ".*Could not find the PLT.*") of
-                        nomatch   -> ok;
-                        {match, _} -> prompt_for_plt()
-                    end
+                    os:putenv("DIALYZER_PLT", string:trim(Loc)),
+                    NewConfig = config:update_config(Configs, "custom_plt_location", Loc),
+                    ensure_plt(NewConfig)
             end
-    end.
-    
+    end,
+    config:save_config(Configs).

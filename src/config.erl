@@ -1,6 +1,9 @@
 -module(config).
 
--export([load_config/0,save_config/1,update_config/3]).
+-export([load_config/0,
+         save_config/1,
+         update_config/3,
+         lookup/2]).
 
 -type config() :: [{string(), string()}].
 
@@ -8,7 +11,14 @@
 
 -spec update_config(config(), string(), string()) -> config().
 update_config(Config, Key, Value) ->
-    lists:keyreplace(Key, 1, Config, {Key, Value}).
+    lists:keystore(Key, 1, Config, {Key, Value}).
+
+-spec lookup(config(), string()) -> string() | boolean().
+lookup(Config, Key) ->
+    case lists:keyfind(Key, 1, Config) of
+        {_, Value} -> Value;
+        _Otherwise -> false
+    end.
 
 -spec create_default() -> config().
 create_default() ->
