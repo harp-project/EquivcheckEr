@@ -42,7 +42,7 @@ is_function_def(Line) ->
 -spec get_name(string()) -> string().
 get_name(FunStr) ->
     Options = [global, {capture, [1], list}],
-    {match, [[Name]]} = re:run(FunStr,"(.*)\\(.*", Options),
+    {match, [[Name]]} = re:run(FunStr,"(.*?)\\(.*", Options),
     Name.
 
 -spec get_arity(string()) -> string().
