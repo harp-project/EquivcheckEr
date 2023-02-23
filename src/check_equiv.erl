@@ -65,7 +65,8 @@ test_function(M, F, Type, OrigNode, RefacNode, Options) ->
     proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
 
 check_equiv(OrigHash, RefacHash) ->
-    typing:ensure_plt(),
+    Configs = config:load_config(),
+    typing:ensure_plt(Configs),
     application:start(wrangler), % TODO
     proper_typeserver:start(),
     {_, ProjFolder} = file:get_cwd(),
