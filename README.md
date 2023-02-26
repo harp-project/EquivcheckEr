@@ -8,3 +8,4 @@
 - [Wrangler](https://refactoringtools.github.io/docs/wrangler/)
 - [PropEr](https://proper-testing.github.io/)
 - Git: The git cli client has to be installed
+- Dialyzer, Typer (usually packaged together with Erlang)
