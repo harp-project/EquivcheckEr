@@ -27,12 +27,6 @@ compile(Modules, DirName) ->
     file:make_dir(DirName),
     lists:map(fun(X) -> compile:file(X, [{outdir, DirName}, {warn_format, 0}]) end, Modules).
 
-show_result({Res, Failed}) ->
-    NumOfFail = length(Failed),
-    NumOfSuccess = length(Res),
-    io:format("Results: ~p~n", [Failed]),
-    io:format("~p failed out of ~p~n", [NumOfFail, NumOfSuccess]).
-
 start_nodes() ->
     % TODO Handle error, use other port if its already used
     {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", ?ORIGINAL_CODE_FOLDER]}),
