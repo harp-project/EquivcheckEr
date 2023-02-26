@@ -14,7 +14,7 @@
 -spec add_types([fun_info()]) ->
     [{atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}].
 add_types(Funs) ->
-    AllSpecs = parse_typer("something failed\n" ++ os:cmd("typer -r .")),
+    AllSpecs = parse_typer(os:cmd("typer -r .")),
     case AllSpecs of
         typer_error -> lists:map(fun(F) -> add_type_fallback(F) end, Funs);
         _Otherwise  -> lists:map(fun(F) -> add_type(F, AllSpecs) end, Funs)
