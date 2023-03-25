@@ -84,7 +84,7 @@ parse_spec(SpecStr) ->
     
     case ArgsStr of
         []   -> {FunName, ""}; % Nullary function
-        Args -> {FunName, string:split(Args, ",", all)}
+        Args -> {FunName, utils:split_args(Args)}
     end.
 
 % PLT (Persistent Lookup Table) related functions

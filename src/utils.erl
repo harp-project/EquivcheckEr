@@ -17,8 +17,23 @@ statistics() ->
     Average = lists:sum(FailCounts) / length(FailCounts),
     io:format("Average no. tries before counterexample is found: ~p~n", [Average]).
 
-bench(Count) ->
-    run(Count) / Count.
+split_args(SpecStr) -> args(SpecStr, "").
 
-run(0) -> 0;
-run(Count) -> element(1, timer:tc(vsc_equiv, check_equiv, ["468f49", "0f07c3a", f_old, f_new])) + run(Count-1).
+args([], Acc) -> [Acc];
+args([H|T], _) when [H] =:= "(" and (T =:= ")") -> "";
+args([H|T], Acc) when [H] =:= "{" -> curly(T, "{" ++ Acc, 0);
+args([H|T], Acc) when [H] =:= "," -> [Acc|args(T, "")];
+args([H|T], Acc) when [H] =:= "[" -> bracket(T, "[" ++ Acc, 0);
+args([H|T], Acc) -> args(T, Acc ++ [H]).
+
+curly([H|T], Acc, Level) when [H] =:= "{" -> curly(T, Acc ++ "{", Level + 1);
+curly([H|[_|T]], Acc, Level) when ([H] =:= "}") and (Level =:= 0) -> [Acc ++ "}"|args(T, "")];
+curly([H|[]], Acc, Level) when ([H] =:= "}") and (Level =:= 0) -> [Acc ++ "}"];
+curly([H|T], Acc, Level) when ([H] =:= "}") and (Level =/= 0) -> curly(T, Acc ++ "}", Level - 1);
+curly([H|T], Acc, Level) -> curly(T, Acc ++ [H], Level).
+
+bracket([H|T], Acc, Level) when [H] =:= "[" -> bracket(T, Acc ++ "[", Level + 1);
+bracket([H|[_|T]], Acc, Level) when ([H] =:= "]") and (Level =:= 0) -> [Acc ++ "]"|args(T, "")];
+bracket([H|[]], Acc, Level) when ([H] =:= "]") and (Level =:= 0) -> [Acc ++ "]"];
+bracket([H|T], Acc, Level) when ([H] =:= "]") and (Level =/= 0) -> bracket(T, Acc ++ "]", Level - 1);
+bracket([H|T], Acc, Level) -> bracket(T, Acc ++ [H], Level).
