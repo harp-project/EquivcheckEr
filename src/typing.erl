@@ -7,7 +7,7 @@
 
 -type fun_info() :: {atom(), string(), integer()}.
 
--define(PLT_DEFAULT_LOC, "/erlang/.dialyzer_plt").
+-define(PLT_DEFAULT_LOC, ".cache/erlang/.dialyzer_plt").
 
 % Gets the list of every function that has to be tested, and
 % pairs it with the right PropEr type information for data generation
@@ -69,7 +69,7 @@ parse_typer(TyperOutput) ->
 -spec get_args(string(), string(), integer()) -> [string()].
 get_args(SpecStrings, F, A) ->
     Specs = lists:map(fun(X) -> parse_spec(X) end, SpecStrings),
-    Funs = lists:search(fun({FunName,Args}) -> (FunName =:= F) and
+    Funs = lists:search(fun({FunName, Args}) -> (FunName =:= F) and
                                                ((length(Args)) =:= A) end, Specs),
     case Funs of
         {value, {_, ArgList}} -> ArgList;
@@ -97,10 +97,11 @@ prompt_for_plt() ->
 
 
 check_plt() ->
-    DialyzerOutput = os:cmd("dialyzer --check_plt"),
-    case re:run(DialyzerOutput, ".*Could not find the PLT.*") of
-        nomatch   -> found;
-        {match, _} -> not_found
+    % TODO dialyzer_plt: check_plt, get_default_plt
+    Loc = "/home/" ++ os:getenv("USER") ++ "/" ++ ?PLT_DEFAULT_LOC,
+    case dialyzer:plt_info(Loc) of
+        {ok,_}     -> found;
+        _          -> not_found
     end.
 
 ensure_plt(Configs) ->
