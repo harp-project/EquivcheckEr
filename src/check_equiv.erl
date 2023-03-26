@@ -39,7 +39,7 @@ stop_nodes(Orig, Refac) ->
 
 -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
 eval_func(Node, M, F, A) ->
-    try peer:call(Node, M, F, A) of
+    try peer:call(Node, M, F, A, 1000) of
         Val -> {normal, Val}
     catch
         error:Error -> Error
