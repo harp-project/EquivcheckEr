@@ -34,7 +34,7 @@ extract_file(DiffLine) ->
 -spec is_function_def(string()) -> boolean().
 is_function_def(Line) ->
     % Regexp for finding top-level function definitions
-    case re:run(Line, "^[\\+-][^-[:space:]].*\\(.*?\\).*", []) of
+    case re:run(Line, "^[\\+-][^-[:space:]%].*\\(.*?\\).*", []) of
         nomatch -> false;
         _       -> true
     end.
