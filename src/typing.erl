@@ -7,8 +7,6 @@
 
 -type fun_info() :: {atom(), string(), integer()}.
 
--define(PLT_DEFAULT_LOC, ".cache/erlang/.dialyzer_plt").
-
 % Gets the list of every function that has to be tested, and
 % pairs it with the right PropEr type information for data generation
 -spec add_types([fun_info()]) ->
@@ -97,8 +95,7 @@ prompt_for_plt() ->
 
 
 check_plt() ->
-    % TODO dialyzer_plt: check_plt, get_default_plt
-    Loc = "/home/" ++ os:getenv("USER") ++ "/" ++ ?PLT_DEFAULT_LOC,
+    Loc = dialyzer_plt:get_default_plt(),
     case dialyzer:plt_info(Loc) of
         {ok,_}     -> found;
         _          -> not_found
