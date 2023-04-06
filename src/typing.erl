@@ -93,7 +93,7 @@ prompt_for_plt() ->
     io:format("or press enter to generate it!~n"),
     io:get_line("> ").
 
-
+-spec check_plt() -> atom().
 check_plt() ->
     Loc = dialyzer_plt:get_default_plt(),
     case dialyzer:plt_info(Loc) of
@@ -101,6 +101,7 @@ check_plt() ->
         _          -> not_found
     end.
 
+-spec ensure_plt(config:config()) -> none().
 ensure_plt(Configs) ->
     case config:lookup(Configs, "custom_plt_location") of
         false     -> ok;
