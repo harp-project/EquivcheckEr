@@ -5,6 +5,8 @@
 
 -export([add_types/1,ensure_plt/1]).
 
+-include("dialyzer.hrl").
+
 -type fun_info() :: {atom(), string(), integer()}.
 
 % Gets the list of every function that has to be tested, and
@@ -49,7 +51,7 @@ get_type({Module, TypeStr}) ->
 -spec parse_typer(string()) -> [{string(), [string()]}] | atom().
 parse_typer(TyperOutput) ->
     case re:run(TyperOutput, ".*failed.*\n") of
-        {match, _} -> typer_error;
+        {match, _} -> typer_error; % TODO Why does this match `nomatch`???
         _Otherwise ->
             Files = string:split(string:trim(TyperOutput), "\n\n", all),
 
@@ -112,8 +114,11 @@ ensure_plt(Configs) ->
         not_found ->
             case prompt_for_plt() of
                 "\n" -> 
-                    io:format("Generating PLT. This could take a while..."),
-                    os:cmd("dialyzer --build_plt --apps erts kernel stdlib mnesia");
+                    io:format("Generating PLT. This could take a while...\n"),
+                    Apps = ["erts", "kernel", "stdlib", "mnesia"],
+                    Dirs = dialyzer_cl_parse:get_lib_dir(Apps),
+                    dialyzer_cl:start(#options{analysis_type = plt_build, files = Dirs, get_warnings = false}),
+                    ok;
                 Loc  ->
                     os:putenv("DIALYZER_PLT", string:trim(Loc)),
                     NewConfig = config:update_config(Configs, "custom_plt_location", Loc),
