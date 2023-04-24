@@ -1,7 +1,7 @@
 %% This module finds the functions that will be tested with random data
 %% based on the diff output of the two commits and the type of refactoring
 %% that was done
--module(scoping).
+-module(slicing).
 
 -export([scope/2]).
 

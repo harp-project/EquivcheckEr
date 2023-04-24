@@ -84,7 +84,7 @@ check_equiv(OrigHash, RefacHash) ->
     Sources = read_sources(ChangedFiles, OrigHash, RefacHash),
 
     % Gets back the files that have to be compiled, and the functions that have to be tested
-    Funs = scoping:scope(DiffOutput, Sources),
+    Funs = slicing:scope(DiffOutput, Sources),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
