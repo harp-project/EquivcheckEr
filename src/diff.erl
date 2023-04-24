@@ -2,6 +2,15 @@
 
 -export([diff/2]).
 
+-type filename() :: string().
+-type diff_line() :: string().
+-type fun_info() :: {atom(), string(), integer()}.
+-type line_number() :: integer().
+-type hunk_info() :: {[diff_line()], fun_info(), {line_number(), integer()}}.
+-type hunk() :: {filename(), {hunk_info(), hunk_info()}}.
+-type source() :: [string()].
+
+
 parse_diff(DiffStr) ->
     [_|Files] = string:split(DiffStr, "diff --git ", all),
     Lines = lists:map(fun(Str) -> string:split(Str, "\n", all) end, Files),
@@ -52,6 +61,7 @@ get_funcs({_, {_, OrigFun, _}, {_, RefacFun, _}}) ->
     {OrigFun, RefacFun}. 
 
 
+-spec hunks_by_file(filename(), [hunk()]) -> [hunk()].
 hunks_by_file(FileName, Hunks) ->
     % TODO: this can be false
     lists:filter(fun({HunkFileName, _, _}) -> FileName =:= HunkFileName end, Hunks).
@@ -66,8 +76,7 @@ diff(DiffStr, Sources) ->
                           lists:map(fun(Hunk) -> hunk(Hunk, FileName, Source) end, Hunks) end,
                   HunkLinesByFile).
 
-% {{[x,y,z], {277, 279}}}
-% {{[lines], {start, end}}, {[lines], {start, end}}}
+-spec hunk([string()], filename(), {source(), source()}) -> hunk().
 hunk([Header|DiffLines], FileName, {OrigSource, RefacSource}) ->
     Options = [{capture, [1,2,3,4], list}],
     % Captures the line numbers and optionally the length for multiline hunks
