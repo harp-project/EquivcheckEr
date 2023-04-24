@@ -17,6 +17,15 @@ statistics() ->
     Average = lists:sum(FailCounts) / length(FailCounts),
     io:format("Average no. tries before counterexample is found: ~p~n", [Average]).
 
+read(FileName) ->
+    {ok, F} = file:read_file(FileName),
+    string:split(erlang:binary_to_list(F), "\n", all).
+
+% Splits up a list containing an even number of items into groups of two
+group_by_two([]) -> [];
+group_by_two([H1,H2|T]) -> [[H1,H2]|group_by_two(T)].
+
+% Split up arguments passed as a string into a list of the individual arguments
 split_args(SpecStr) -> args(SpecStr, "").
 
 args([], Acc) -> [Acc];

@@ -3,59 +3,48 @@
 %% that was done
 -module(scoping).
 
--export([scope/1]).
+-export([scope/2]).
 
 -type fun_info() :: {atom(), string(), integer()}.
 
 % These all have to be called from the directory of the source code! TODO, pass the folder as argument?
 
--spec scope(string()) -> {[string()], [{atom(), atom(), proper_types:type()}]}.
-scope(Diff) ->
+-spec scope(string(), [string()]) -> {[{atom(), atom(), proper_types:type()}]}.
+scope(Diff, Sources) ->
     % TODO For new, we only consider function renaming,
     % but later other kinds of refactorings will be added
-    Diffs = extract_diffs(Diff),
-    {Callee, Callers} = renaming(Diffs),
-    Files = extract_files({Callee, Callers}),
-    Functions = typing:add_types(Callers),
-    {Files, Functions}.
+    Hunks = diff:diff(Diff, Sources),
+    Functions = modified_funcs(Hunks),
+    NewFuns = lists:map(fun({_,Fun}) -> Fun end, Functions),
+    typing:add_types(NewFuns).
+    % Diffs = extract_diffs(Diff),
+    % {Callee, Callers} = renaming(Diffs),
+    % Files = extract_files({Callee, Callers}),
+    % Functions = typing:add_types(Callers),
+    % {Files, Functions}.
 
--spec extract_diffs(string()) -> {string(), [string()]}.
-extract_diffs(Diff) ->
-    [_|Files] = string:split(Diff, "diff --git ", all),
-    Lines = lists:map(fun(X) -> string:split(X, "\n", all) end, Files),
-    lists:map(fun([H|T]) -> {extract_file(H),T} end, Lines).
+modified_funcs(Hunks) ->
+    NotFunc = fun({{_, X, _},_}) -> X =/= [] end, % Not a change in function
+    lists:uniq(lists:filter(NotFunc, lists:map(fun diff:get_funcs/1, Hunks))).
 
--spec extract_file(string()) -> string().
-extract_file(DiffLine) ->
-    Options = [global, {capture, [1], list}],
-    {match, [[FileName]]} = re:run(DiffLine,".*/(.*\.erl).*", Options),
-    FileName.
-
--spec is_function_def(string()) -> boolean().
-is_function_def(Line) ->
-    % Regexp for finding top-level function definitions
-    case re:run(Line, "^[\\+-][^-[:space:]%].*\\(.*?\\).*", []) of
-        nomatch -> false;
-        _       -> true
-    end.
-
--spec get_name_and_arity(string()) -> {string(), integer()}.
-get_name_and_arity(FunStr) ->
-    Options = [global, {capture, [1], list}],
-    {match, [[Fun]]} = re:run(FunStr, "^(.*?\\(.*?\\)).*", Options),
-    {ok, Toks, _} = erl_scan:string(Fun ++ "."),
-    {ok, [{call, _, {atom, _, Name}, Args}]} = erl_parse:parse_exprs(Toks),
-    {atom_to_list(Name), length(Args)}.
-
--spec renaming({string(), [string()]}) -> {fun_info(), [fun_info()]}.
-renaming(Diffs) ->
-    % Find files where function definitions have changed
-    ChangesByFile = lists:map(fun({File, Lines}) -> {File, lists:filter(fun(Line) -> is_function_def(Line) end, Lines)} end, Diffs),
-    [{File, Funs}] = lists:filter(fun({_,List}) -> not(List == []) end, ChangesByFile),
-    [{OldName, Arity}, {NewName, _}] = lists:map(fun([_|FunStr]) -> get_name_and_arity(FunStr) end, Funs),
-    Callee = {get_module(File), NewName, Arity},
-    Callers = find_callers({File, NewName, Arity}),
-    {Callee, Callers}.
+% find_renaming(Diffs) ->
+%     FunDefs = lists:filter(fun(Line) -> is_function_sig(Line) end, Diffs),
+%     FunNames = lists:map(fun([_|FunDef]) -> {Name, _} = get_name_and_arity(FunDef), Name end, FunDefs),
+%     [H|_] = lists:filter(fun([P1, P2]) -> P1 =/= P2 end, utils:group_by_two(FunNames)),
+%     H.
+%
+% -spec renaming({string(), [string()]}) -> {fun_info(), [fun_info()]}.
+% renaming(Diffs) ->
+%     % Find files where function definitions have changed
+%     ChangesByFile = lists:map(fun({File, Lines}) -> {File, lists:filter(fun(Line) -> is_function_sig(Line) end, Lines)} end, Diffs),
+%
+%     [{File, [Old,New|_]}] = lists:filter(fun({_,List}) -> not(List == []) end, ChangesByFile),
+%
+%     [{OldName, Arity}, {NewName, _}] = lists:map(fun([_|FunStr]) -> get_name_and_arity(FunStr) end, [Old,New]),
+%
+%     Callee = {get_module(File), NewName, Arity},
+%     Callers = find_callers({File, NewName, Arity}),
+%     {Callee, Callers}.
 
 -spec find_callers({string(), string(), integer()}) -> [fun_info()].
 find_callers({FileName, FunName, Arity}) ->

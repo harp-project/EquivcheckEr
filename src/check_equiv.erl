@@ -58,6 +58,15 @@ prop_same_output(OrigNode, RefacNode, M, F, A) ->
 test_function(M, F, Type, OrigNode, RefacNode, Options) ->
     proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
 
+read_sources(ChangedFiles, OrigHash, RefacHash) ->
+    checkout(OrigHash),
+    OrigSources = lists:map(fun utils:read/1, ChangedFiles),
+    checkout(RefacHash), % TODO: Not sure if needed
+    RefacSources = lists:map(fun utils:read/1, ChangedFiles),
+    Sources = lists:zip(OrigSources, RefacSources),
+    lists:zip(ChangedFiles, Sources).
+
+
 check_equiv(OrigHash, RefacHash) ->
     Configs = config:load_config(),
     typing:ensure_plt(Configs),
@@ -69,28 +78,32 @@ check_equiv(OrigHash, RefacHash) ->
     file:set_cwd(?TEMP_FOLDER),
     checkout(RefacHash), % Scoping needs the repo to be at the commit containing the refactored code
 
-    Diff_Output = os:cmd("git diff --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
+    DiffOutput = os:cmd("git diff -U0 --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
+    ChangedFiles = lists:droplast(string:split(os:cmd("git diff --no-ext-diff --name-only " ++ OrigHash ++ " " ++ RefacHash), "\n", all)),
+
+    Sources = read_sources(ChangedFiles, OrigHash, RefacHash),
 
     % Gets back the files that have to be compiled, and the functions that have to be tested
-    {Files, Funs} = scoping:scope(Diff_Output),
+    Funs = scoping:scope(DiffOutput, Sources),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
     % function repeatedly side-by-side
     checkout(OrigHash),
-    compile(Files, ?ORIGINAL_CODE_FOLDER),
+    compile(ChangedFiles, ?ORIGINAL_CODE_FOLDER),
 
     checkout(RefacHash),
-    compile(Files, ?REFACTORED_CODE_FOLDER),
+    compile(ChangedFiles, ?REFACTORED_CODE_FOLDER),
 
     {OrigNode, RefacNode} = start_nodes(),
 
-    Options = [quiet, long_result],
+    ProperOpts = [long_result, {on_output, fun(X,Y) -> utils:count_tests(X,Y) end}],
+    % ProperOpts = [long_result, quiet],
 
     % A result is a tuple: {Module, Function, Counterexample}
     % If no counterexample is found, the third value is 'true' instead
     Res = lists:map(fun({M, F, Type}) ->
-                            {M, F, test_function(M, F, Type, OrigNode, RefacNode, Options)}
+                            {M, F, test_function(M, F, Type, OrigNode, RefacNode, ProperOpts)}
                     end, Funs),
 
     % Drop the passed results, we need the counterexamples
