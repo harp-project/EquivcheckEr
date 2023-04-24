@@ -1,6 +1,4 @@
 -module(utils).
--compile(export_all). % Exports all functions
--compile(debug_info).
 
 show_result({_, Failed}) ->
     io:format("Results: ~p~n", [Failed]).
