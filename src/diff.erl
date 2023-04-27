@@ -20,12 +20,6 @@ parse_diff(DiffStr) ->
                                       tl(lists:foldr(fun add/2, [[]], DiffLines))} end,
                              LinesByFiles).
 
--spec extract_diffs(string()) -> {string(), [string()]}.
-extract_diffs(Diff) ->
-    [_|Files] = string:split(Diff, "diff --git ", all),
-    Lines = lists:map(fun(X) -> string:split(X, "\n", all) end, Files),
-    lists:map(fun([H|T]) -> {extract_file(H),T} end, Lines).
-
 -spec extract_file(string()) -> string().
 extract_file(DiffLine) ->
     Options = [global, {capture, [1], list}],
@@ -68,7 +62,6 @@ hunks_by_file(FileName, Hunks) ->
 
 %%% Construct Hunks %%%
 
-% TODO This needs the files already read in, `git diff --name-only`
 diff(DiffStr, Sources) ->
     HunkLinesByFile = parse_diff(DiffStr),
     lists:flatmap(fun({FileName,Hunks}) ->
@@ -76,18 +69,18 @@ diff(DiffStr, Sources) ->
                           lists:map(fun(Hunk) -> hunk(Hunk, FileName, Source) end, Hunks) end,
                   HunkLinesByFile).
 
+get_lines(Prefix, Lines) ->
+    lists:map(fun tl/1,
+              lists:filter(fun([FstChar|_]) -> [FstChar] =:= Prefix end, Lines)).
+
 -spec hunk([string()], filename(), {source(), source()}) -> hunk().
 hunk([Header|DiffLines], FileName, {OrigSource, RefacSource}) ->
     Options = [{capture, [1,2,3,4], list}],
     % Captures the line numbers and optionally the length for multiline hunks
     Pattern = "@@ -(\\d+),?(\\d?).*\\+(\\d+),?(\\d?).*",
-    {match,[OrigStart, OrigLen, RefacStart, RefacLen]} = re:run(Header, Pattern, Options),
-    OrigLines = lists:map(fun([_|Line]) -> Line end,
-                          lists:filter(fun([FstChar|_]) -> [FstChar] =:= "-" end,
-                                       DiffLines)),
-    RefacLines = lists:map(fun([_|Line]) -> Line end,
-                           lists:filter(fun([FstChar|_]) -> [FstChar] =:= "+" end,
-                                        DiffLines)),
+    {match, [OrigStart, OrigLen, RefacStart, RefacLen]} = re:run(Header, Pattern, Options),
+    OrigLines = get_lines("-", DiffLines),
+    RefacLines = get_lines("+", DiffLines),
     {OF, OA} = find_function(OrigSource, erlang:list_to_integer(OrigStart)),
     {RF, RA} = find_function(RefacSource, erlang:list_to_integer(RefacStart)),
     M = erlang:list_to_atom(filename:rootname(FileName, ".erl")),
