@@ -81,6 +81,11 @@ get_lines(Prefix, Lines) ->
     lists:map(fun erlang:tl/1,
               lists:filter(fun([FstChar|_]) -> [FstChar] =:= Prefix end, Lines)).
 
+has_func_sig(Lines) ->
+    lists:foldr(fun(Line, Bool) -> is_function_sig(Line) or Bool end,
+                false,
+                Lines).
+
 line_numbers(OrigStart, OrigLen, RefacStart, RefacLen) ->
     OS = erlang:list_to_integer(OrigStart),
     RS = erlang:list_to_integer(RefacStart),
@@ -90,8 +95,22 @@ line_numbers(OrigStart, OrigLen, RefacStart, RefacLen) ->
         {_, []}    -> {OS, erlang:list_to_integer(OrigLen), RS, 0};
         _          -> {OS, erlang:list_to_integer(OrigLen), RS, erlang:list_to_integer(RefacLen)}
     end.
+    
+added_lines(M, OS, RS, Lines, {OrigSource, RefacSource}) ->
+    case has_func_sig(Lines) of
+        true  -> {RF, RA} = find_function(RefacSource, RS), %% New function added
+                 {{}, {M, RF, RA}};
+        false -> modified_lines(M, OS, RS, {RefacSource, OrigSource}) %% Modified existing function
+    end.
 
-modified_lines(M, OS, RS, {RefacSource, OrigSource}) ->
+removed_lines(M, OS, RS, Lines, {OrigSource, RefacSource}) ->
+    case has_func_sig(Lines) of
+        true  -> {OF, OA} = find_function(OrigSource, OS), %% Function removed
+                 {{M, OF, OA}, {}};
+        false -> modified_lines(M, OS, RS, {RefacSource, OrigSource}) %% Modified existing function
+    end.
+
+modified_lines(M, OS, RS, {OrigSource, RefacSource}) ->
     {OF, OA} = find_function(OrigSource, OS),
     {RF, RA} = find_function(RefacSource, RS),
     {{M, OF, OA}, {M, RF, RA}}.
@@ -107,16 +126,16 @@ hunk([Header|DiffLines], FileName, Sources) ->
     OrigLines = get_lines("-", DiffLines),
     RefacLines = get_lines("+", DiffLines),
     case {OrigLines, RefacLines} of
-        % {[], _} -> {OrigFun, RefacFun} = added_lines(M);
-        % {_, []} -> {OrigFun, RefacFun} = removed_lines(M);
+        {[], _} -> {OrigFun, RefacFun} = added_lines(M, OS, RS, RefacLines, Sources);
+        {_, []} -> {OrigFun, RefacFun} = removed_lines(M, OS, RS, OrigLines, Sources);
         _       -> {OrigFun, RefacFun} = modified_lines(M, OS, RS, Sources)
     end,
     {FileName, {OrigLines, OrigFun, {OS, OL}}, {RefacLines, RefacFun, {RS, RL}}}.
     
 find_function(Source, LineNum) ->
-    Signature = (lists:dropwhile(fun(Line) -> not(is_function_sig(Line)) end,
-                    lists:reverse(lists:sublist(Source, LineNum)))),
+    Signature = lists:dropwhile(fun(Line) -> not(is_function_sig(Line)) end,
+                    lists:reverse(lists:sublist(Source, LineNum))),
     case Signature of
         []         -> {"", ""}; % TODO: Not a diff in a function, mostly export list elements
-        _Otherwise -> get_name_and_arity(Signature)
+        _Otherwise -> get_name_and_arity(hd(Signature)) % TODO: Rename the signature, it's a list of lines now
     end.
