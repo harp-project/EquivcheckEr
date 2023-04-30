@@ -100,14 +100,14 @@ added_lines(M, OS, RS, Lines, {OrigSource, RefacSource}) ->
     case has_func_sig(Lines) of
         true  -> {RF, RA} = find_function(RefacSource, RS), %% New function added
                  {{}, {M, RF, RA}};
-        false -> modified_lines(M, OS, RS, {RefacSource, OrigSource}) %% Modified existing function
+        false -> modified_lines(M, OS, RS, {OrigSource, RefacSource}) %% Modified existing function
     end.
 
 removed_lines(M, OS, RS, Lines, {OrigSource, RefacSource}) ->
     case has_func_sig(Lines) of
         true  -> {OF, OA} = find_function(OrigSource, OS), %% Function removed
                  {{M, OF, OA}, {}};
-        false -> modified_lines(M, OS, RS, {RefacSource, OrigSource}) %% Modified existing function
+        false -> modified_lines(M, OS, RS, {OrigSource, RefacSource}) %% Modified existing function
     end.
 
 modified_lines(M, OS, RS, {OrigSource, RefacSource}) ->
