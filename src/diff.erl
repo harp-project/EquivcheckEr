@@ -3,7 +3,10 @@
 %% all the information about a change that is needed for finding out what has to be testsd
 -module(diff).
 
--export([diff/2]).
+-export([diff/2,
+         get_old/1,
+         get_new/1,
+         get_funcs/1]).
 
 -type filename() :: string().
 -type diff_line() :: string().
@@ -62,6 +65,11 @@ get_name_and_arity(FunStr) ->
 get_funcs({_, {_, OrigFun, _}, {_, RefacFun, _}}) ->
     {OrigFun, RefacFun}. 
 
+get_new({_, {_, _, _}, {_, RefacFun, _}}) ->
+    RefacFun.
+
+get_old({_, {_, OrigFun, _}, {_, _, _}}) ->
+    OrigFun.
 
 -spec hunks_by_file(filename(), [hunk()]) -> [hunk()].
 hunks_by_file(FileName, Hunks) ->
@@ -122,13 +130,14 @@ hunk([Header|DiffLines], FileName, Sources) ->
     Pattern = "@@ -(\\d+),?(\\d?).*\\+(\\d+),?(\\d?).*",
     {match, [OrigStart, OrigLen, RefacStart, RefacLen]} = re:run(Header, Pattern, Options),
     {OS, OL, RS, RL} = line_numbers(OrigStart, OrigLen, RefacStart, RefacLen),
-    M = erlang:list_to_atom(filename:rootname(FileName, ".erl")),
+    % M = erlang:list_to_atom(filename:rootname(FileName, ".erl")),
+    M = FileName,
     OrigLines = get_lines("-", DiffLines),
     RefacLines = get_lines("+", DiffLines),
     case {OrigLines, RefacLines} of
-        {[], _} -> {OrigFun, RefacFun} = added_lines(M, OS, RS, RefacLines, Sources);
-        {_, []} -> {OrigFun, RefacFun} = removed_lines(M, OS, RS, OrigLines, Sources);
-        _       -> {OrigFun, RefacFun} = modified_lines(M, OS, RS, Sources)
+        {[], _} -> {OrigFun, RefacFun} = added_lines(M, OS + OL, RS + RL, RefacLines, Sources);
+        {_, []} -> {OrigFun, RefacFun} = removed_lines(M, OS + OL, RS + RL, OrigLines, Sources);
+        _       -> {OrigFun, RefacFun} = modified_lines(M, OS + OL, RS + RL, Sources)
     end,
     {FileName, {OrigLines, OrigFun, {OS, OL}}, {RefacLines, RefacFun, {RS, RL}}}.
     
