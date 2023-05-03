@@ -39,7 +39,7 @@ add(Line, [LastHunk|Hunks]) ->
 -spec extract_file(string()) -> string().
 extract_file(DiffLine) ->
     Options = [global, {capture, [1], list}],
-    {match, [[FileName]]} = re:run(DiffLine,".*/(.*\.erl).*", Options),
+    {match, [[FileName]]} = re:run(DiffLine,".*a/(.*?\.erl).*", Options),
     FileName.
 
 -spec is_function_sig(string()) -> boolean().
