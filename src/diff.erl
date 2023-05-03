@@ -21,7 +21,8 @@
 parse_diff(DiffStr) ->
     [_|Files] = string:split(DiffStr, "diff --git ", all),
     Lines = lists:map(fun(Str) -> string:split(Str, "\n", all) end, Files),
-    LinesByFiles = lists:map(fun([H,_,_,_|T]) -> {extract_file(H), lists:droplast(T)} end, Lines),
+    ErlangLines = lists:filter(fun is_erl_source/1, Lines),
+    LinesByFiles = lists:map(fun([H,_,_,_|T]) -> {extract_file(H), lists:droplast(T)} end, ErlangLines),
     lists:map(fun({FileName, DiffLines}) ->
                                      {FileName,
                                       tl(lists:foldr(fun add/2, [[]], DiffLines))} end,
@@ -41,6 +42,14 @@ extract_file(DiffLine) ->
     Options = [global, {capture, [1], list}],
     {match, [[FileName]]} = re:run(DiffLine,".*a/(.*?\.erl).*", Options),
     FileName.
+
+% Checks if the given file in the diff output is erlang source code
+is_erl_source([Header|_]) ->
+    case re:run(Header, ".*/(.*\.erl).*") of
+        {match,_}   -> true;
+        nomatch     -> false
+    end.
+    
 
 -spec is_function_sig(string()) -> boolean().
 is_function_sig(Line) ->
