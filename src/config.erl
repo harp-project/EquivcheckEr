@@ -8,6 +8,7 @@
 -type config() :: [{string(), string()}].
 
 -define(CONF_DEFAULT_LOC, "/equivcheckrc").
+-define(SEPARATOR, " "). % Separates the config key from the value in the config file
 
 -spec update_config(config(), string(), string()) -> config().
 update_config(Config, Key, Value) ->
@@ -28,13 +29,13 @@ create_default() ->
 deserialize(ConfigStr) ->
     Lines = string:split(string:trim(ConfigStr), "\n", all),
     lists:map(fun(Line) ->
-                      [Key, Value] = string:split(Line, " "),
+                      [Key, Value] = string:split(Line, ?SEPARATOR),
                       {Key, Value} end, Lines).
 
 -spec serialize(config()) -> string().
 serialize(Config) ->
     lists:foldr(fun({Key, Value}, ConfigStr) ->
-                        Key ++ " " ++ Value ++ "\n" ++ ConfigStr end,
+                        Key ++ ?SEPARATOR ++ Value ++ "\n" ++ ConfigStr end,
                 "",
                 Config).
 
