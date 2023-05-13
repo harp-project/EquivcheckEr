@@ -8,6 +8,7 @@
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
 -define(ORIGINAL_CODE_FOLDER, "orig").
 -define(REFACTORED_CODE_FOLDER, "refac").
+-define(PEER_TIMEOUT, 1000).
 
 -spec copy_project(string()) -> string().
 copy_project(ProjFolder) ->
@@ -39,7 +40,7 @@ stop_nodes(Orig, Refac) ->
 
 -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
 eval_func(Node, M, F, A) ->
-    try peer:call(Node, M, F, A, 1000) of
+    try peer:call(Node, M, F, A, ?PEER_TIMEOUT) of
         Val -> {normal, Val}
     catch
         error:Error -> Error
