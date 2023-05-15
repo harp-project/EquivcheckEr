@@ -8,6 +8,7 @@
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
 -define(ORIGINAL_CODE_FOLDER, "orig").
 -define(REFACTORED_CODE_FOLDER, "refac").
+-define(PEER_TIMEOUT, 1000).
 
 -spec copy_project(string()) -> string().
 copy_project(ProjFolder) ->
@@ -27,9 +28,6 @@ compile(Modules, DirName) ->
     file:make_dir(DirName),
     lists:map(fun(X) -> compile:file(X, [{outdir, DirName}, {warn_format, 0}]) end, Modules).
 
-show_result(Res) ->
-    io:format("Results: ~p~n", [Res]).
-
 start_nodes() ->
     % TODO Handle error, use other port if its already used
     {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", ?ORIGINAL_CODE_FOLDER]}),
@@ -42,10 +40,10 @@ stop_nodes(Orig, Refac) ->
 
 -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
 eval_func(Node, M, F, A) ->
-    try peer:call(Node, M, F, A) of
+    try peer:call(Node, M, F, A, ?PEER_TIMEOUT) of
         Val -> {normal, Val}
     catch
-        error:Error -> {error, Error}
+        error:Error -> Error
     end.
 
 % Spawns a process on each node that evaluates the function and
@@ -62,6 +60,8 @@ test_function(M, F, Type, OrigNode, RefacNode, Options) ->
     proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
 
 check_equiv(OrigHash, RefacHash) ->
+    Configs = config:load_config(),
+    typing:ensure_plt(Configs),
     application:start(wrangler), % TODO
     proper_typeserver:start(),
     {_, ProjFolder} = file:get_cwd(),
@@ -102,4 +102,4 @@ check_equiv(OrigHash, RefacHash) ->
     stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler), % TODO
     proper_typeserver:stop(),
-    FailedFuns.
+    {Res, FailedFuns}.

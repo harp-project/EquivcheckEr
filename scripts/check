@@ -1,0 +1,20 @@
+#!/usr/bin/escript
+
+main(Args) ->
+    net_kernel:start(master, #{name_domain => shortnames}),
+    ets:new(stat, [named_table, protected, set, {keypos, 1}]),
+    ets:insert(stat, {counts, []}),
+    case Args of
+        ["db"]     ->
+            debugger:quick(check_equiv, check_equiv, ["master^", "master"]);
+        ["stats"]  ->
+            {Res, Failed} = check_equiv:check_equiv("master^", "master"),
+            utils:statistics(),
+            NumOfFail = length(Failed),
+            NumOfSuccess = length(Res),
+            io:format("~p failed out of ~p~n", [NumOfFail, NumOfSuccess]);
+        _Otherwise ->
+            Res = check_equiv:check_equiv("master^", "master"),
+            utils:show_result(Res)
+    end,
+    ets:delete(stat).

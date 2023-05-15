@@ -34,29 +34,25 @@ extract_file(DiffLine) ->
 -spec is_function_def(string()) -> boolean().
 is_function_def(Line) ->
     % Regexp for finding top-level function definitions
-    case re:run(Line, "^[\\+-][^-[:space:]].* ->", []) of
+    case re:run(Line, "^[\\+-][^-[:space:]%].*\\(.*?\\).*", []) of
         nomatch -> false;
         _       -> true
     end.
 
--spec get_name(string()) -> string().
-get_name(FunStr) ->
+-spec get_name_and_arity(string()) -> {string(), integer()}.
+get_name_and_arity(FunStr) ->
     Options = [global, {capture, [1], list}],
-    {match, [[Name]]} = re:run(FunStr,"(.*)\\(.*", Options),
-    Name.
-
--spec get_arity(string()) -> string().
-get_arity(FunStr) ->
-    Options = [global, {capture, [1], list}],
-    {match, [[ArgStr]]} = re:run(FunStr,".*\\((.*)\\)", Options),
-    length(string:split(ArgStr, ",", all)).
+    {match, [[Fun]]} = re:run(FunStr, "^(.*?\\(.*?\\)).*", Options),
+    {ok, Toks, _} = erl_scan:string(Fun ++ "."),
+    {ok, [{call, _, {atom, _, Name}, Args}]} = erl_parse:parse_exprs(Toks),
+    {atom_to_list(Name), length(Args)}.
 
 -spec renaming({string(), [string()]}) -> {fun_info(), [fun_info()]}.
 renaming(Diffs) ->
     % Find files where function definitions have changed
     ChangesByFile = lists:map(fun({File, Lines}) -> {File, lists:filter(fun(Line) -> is_function_def(Line) end, Lines)} end, Diffs),
     [{File, Funs}] = lists:filter(fun({_,List}) -> not(List == []) end, ChangesByFile),
-    [{OldName, Arity}, {NewName, _}] = lists:map(fun([_|FunStr]) -> {get_name(FunStr), get_arity(FunStr)} end, Funs),
+    [{OldName, Arity}, {NewName, _}] = lists:map(fun([_|FunStr]) -> get_name_and_arity(FunStr) end, Funs),
     Callee = {get_module(File), NewName, Arity},
     Callers = find_callers({File, NewName, Arity}),
     {Callee, Callers}.
