@@ -17,7 +17,7 @@ statistics() ->
 
 read(FileName) ->
     {ok, F} = file:read_file(FileName),
-    string:split(erlang:binary_to_list(F), "\n", all).
+    erlang:binary_to_list(F).
 
 % Splits up a list containing an even number of items into groups of two
 group_by_two([]) -> [];
