@@ -2,12 +2,12 @@
 
 -export([functions/2]).
 
--type fun_name() :: string().
--type fun_arity() :: integer().
--type line_num() :: integer().
--type boundaries() :: {line_num(), line_num()}.
--type ast() :: erl_syntax:forms().
--type tokens() :: erl_scan:tokens().
+-type fun_name()    :: string().
+-type fun_arity()   :: integer().
+-type line_num()    :: integer().
+-type boundaries()  :: {line_num(), line_num()}.
+-type ast()         :: erl_syntax:forms().
+-type tokens()      :: erl_scan:tokens().
 
 % Finds all the functions in the AST, and pairs them up with their first and last line in the source
 -spec functions(ast(), tokens()) -> [{fun_name(), fun_arity(), boundaries()}].
