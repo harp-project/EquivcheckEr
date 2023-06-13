@@ -90,17 +90,20 @@ check_equiv(OrigHash, RefacHash) ->
     checkout(RefacHash), % Scoping needs the repo to be at the commit containing the refactored code
 
     DiffOutput = os:cmd("git diff -U0 --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
-    ChangedFiles = lists:droplast(string:split(os:cmd("git diff --no-ext-diff --name-only " ++ OrigHash ++ " " ++ RefacHash), "\n", all)),
+    Diffs = diff:diff(DiffOutput),
+    Files = diff:get_files(Diffs),
 
-    FileInfos = read_sources(ChangedFiles, OrigHash, RefacHash),
+    FileInfos = lists:zip3(Files, read_sources(Files, OrigHash), read_sources(Files, RefacHash)),
+    ModifiedFuns = functions:modified_functions(Diffs, FileInfos),
 
-    % Gets back the files that have to be compiled, and the functions that have to be tested
-    {Files, Funs} = slicing:scope(DiffOutput, FileInfos),
+    % Gets back the functions that have to be tested
+    FunsToTest = typing:add_types(slicing:scope(ModifiedFuns)),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
     % function repeatedly side-by-side
     checkout(OrigHash),
+    % TODO Files should contain all the used modules, not just the ones affected by the change
     compile(Files, ?ORIGINAL_CODE_FOLDER),
 
     checkout(RefacHash),
@@ -115,7 +118,7 @@ check_equiv(OrigHash, RefacHash) ->
     % If no counterexample is found, the third value is 'true' instead
     Res = lists:map(fun({M, F, Type}) ->
                             {M, F, test_function(M, F, Type, OrigNode, RefacNode, ProperOpts)}
-                    end, Funs),
+                    end, FunsToTest),
 
     % Drop the passed results, we need the counterexamples
     FailedFuns = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, Res),
