@@ -91,7 +91,7 @@ check_equiv(OrigHash, RefacHash) ->
 
     DiffOutput = os:cmd("git diff -U0 --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
     Diffs = diff:diff(DiffOutput),
-    Files = diff:get_files(Diffs),
+    Files = diff:modified_files(Diffs),
 
     FileInfos = lists:zip3(Files, read_sources(Files, OrigHash), read_sources(Files, RefacHash)),
     ModifiedFuns = functions:modified_functions(Diffs, FileInfos),

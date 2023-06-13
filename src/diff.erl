@@ -3,106 +3,42 @@
 %% all the information about a change that is needed for finding out what has to be testsd
 -module(diff).
 
--export([diff/2,
-         get_old/1,
-         get_new/1,
-         get_funcs/1]).
+-export([diff/1,
+         modified_files/1]).
 
--type filename() :: string().
--type diff_line() :: string().
--type fun_info() :: {atom(), string(), integer()}.
--type line_number() :: integer().
--type hunk_info() :: {[diff_line()], fun_info(), {line_number(), integer()}}.
--type hunk() :: {filename(), {hunk_info(), hunk_info()}}.
--type source() :: [string()].
+-type filename()    :: string().
+-type diff_line()   :: string().
+-type hunk()        :: {filename(), [diff_line()]}.
+-type line_num()    :: integer().
+-type diffs()       :: [{filename(), {[line_num()], [line_num()]}}].
+-type length()      :: integer().
 
-
-% Gets the diff output, and splits it into hunks
-parse_diff(DiffStr) ->
-    [_|Files] = string:split(DiffStr, "diff --git ", all),
-    Lines = lists:map(fun(Str) -> string:split(Str, "\n", all) end, Files),
-    ErlangLines = lists:filter(fun is_erl_source/1, Lines),
-    LinesByFiles = lists:map(fun([H,_,_,_|T]) -> {extract_file(H), lists:droplast(T)} end, ErlangLines),
-    lists:map(fun({FileName, DiffLines}) ->
-                                     {FileName,
-                                      tl(lists:foldr(fun add/2, [[]], DiffLines))} end,
-                             LinesByFiles).
-
-% Used for separating the diff output into individual hunks
--spec add(string(), [string()]) -> [[string()]].
-add(Line, [LastHunk|Hunks]) ->
-    case string:prefix(Line, "@@") of
-        nomatch     -> [lists:append([Line], LastHunk)|Hunks];
-        _Otherwise  -> [[], lists:append([Line], LastHunk)|Hunks]
-    end.
-
-% Extracts the filename from the diff output
--spec extract_file(string()) -> string().
-extract_file(DiffLine) ->
-    Options = [global, {capture, [1], list}],
-    {match, [[FileName]]} = re:run(DiffLine,".*a/(.*?\.erl).*", Options),
-    FileName.
-
-% Checks if the given file in the diff output is erlang source code
-is_erl_source([Header|_]) ->
-    case re:run(Header, ".*/(.*\.erl).*") of
-        {match,_}   -> true;
-        nomatch     -> false
-    end.
-    
-
--spec is_function_sig(string()) -> boolean().
-is_function_sig(Line) ->
-    % Regexp for finding top-level function definitions
-    case re:run(Line, "^[^-[:space:]%].*\\(.*?\\).*", []) of
-        nomatch -> false;
-        _       -> true
-    end.
-
-% Parses a function definition, and gives back its name and arity
--spec get_name_and_arity(string()) -> {string(), integer()}.
-get_name_and_arity(FunStr) ->
-    Options = [global, {capture, [1], list}],
-    {match, [[Fun]]} = re:run(FunStr, "^(.*?\\(.*?\\)).*", Options),
-    {ok, Toks, _} = erl_scan:string(Fun ++ "."),
-    {ok, [{call, _, {atom, _, Name}, Args}]} = erl_parse:parse_exprs(Toks),
-    {atom_to_list(Name), length(Args)}.
+-spec diff(string()) -> diffs().
+diff(DiffStr) ->
+    LinesByFiles = parse_diff(DiffStr),
+    lists:map(fun({FileName, LineData}) ->
+                      {FileName, extract_lines(LineData)} end, LinesByFiles).
 
 
-%%% Accessors %%%
+extract_lines(LineData) ->
+    LineNums = lists:map(fun extract_line/1, LineData),
+    {Origs, Refacs} = lists:unzip(LineNums),
+    OrigLines = lists:flatmap(fun interval/1, Origs),
+    RefacLines = lists:flatmap(fun interval/1, Refacs),
+    {OrigLines, RefacLines}.
 
-get_funcs({_, {_, OrigFun, _}, {_, RefacFun, _}}) ->
-    {OrigFun, RefacFun}. 
+% Regexp for extracting line numbers of modified lines from hunks
+-spec extract_line(string()) -> {{line_num(), length()}, {line_num(), length()}}.
+extract_line(LineData) ->
+    Options = [{capture, [1,2,3,4], list}],
+    Pattern = "@@ -(\\d+),?(\\d?).*\\+(\\d+),?(\\d?).*@@",
+    {match, [OrigStart, OrigLen, RefacStart, RefacLen]} = re:run(LineData, Pattern, Options),
+    {OS, OL, RS, RL} = line_numbers(OrigStart, OrigLen, RefacStart, RefacLen),
+    {{OS, OL}, {RS, RL}}.
 
-get_new({_, {_, _, _}, {_, RefacFun, _}}) ->
-    RefacFun.
 
-get_old({_, {_, OrigFun, _}, {_, _, _}}) ->
-    OrigFun.
-
--spec hunks_by_file(filename(), [hunk()]) -> [hunk()].
-hunks_by_file(FileName, Hunks) ->
-    % TODO: this can be false
-    lists:filter(fun({HunkFileName, _, _}) -> FileName =:= HunkFileName end, Hunks).
-
-%%% Construct Hunks %%%
-
-diff(DiffStr, Sources) ->
-    HunkLinesByFile = parse_diff(DiffStr),
-    lists:flatmap(fun({FileName,Hunks}) ->
-                          {_, Source} = lists:keyfind(FileName, 1, Sources),
-                          lists:map(fun(Hunk) -> hunk(Hunk, FileName, Source) end, Hunks) end,
-                  HunkLinesByFile).
-
-get_lines(Prefix, Lines) ->
-    lists:map(fun erlang:tl/1,
-              lists:filter(fun([FstChar|_]) -> [FstChar] =:= Prefix end, Lines)).
-
-has_func_sig(Lines) ->
-    lists:foldr(fun(Line, Bool) -> is_function_sig(Line) or Bool end,
-                false,
-                Lines).
-
+-spec line_numbers(line_num(), length(), line_num(), length()) ->
+    {line_num(), line_num(), line_num(), line_num()}.
 line_numbers(OrigStart, OrigLen, RefacStart, RefacLen) ->
     OS = erlang:list_to_integer(OrigStart),
     RS = erlang:list_to_integer(RefacStart),
@@ -113,47 +49,39 @@ line_numbers(OrigStart, OrigLen, RefacStart, RefacLen) ->
         _          -> {OS, erlang:list_to_integer(OrigLen), RS, erlang:list_to_integer(RefacLen)}
     end.
     
-added_lines(M, OS, RS, Lines, {OrigSource, RefacSource}) ->
-    case has_func_sig(Lines) of
-        true  -> {RF, RA} = find_function(RefacSource, RS), %% New function added
-                 {{}, {M, RF, RA}};
-        false -> modified_lines(M, OS, RS, {OrigSource, RefacSource}) %% Modified existing function
-    end.
+% Given a starting position and a length, gives back the interval [start, start+length]
+-spec interval({line_num(), length()}) -> {line_num(), line_num()}.
+interval({Start, 0}) ->
+    [Start];
+interval({Start, Len}) ->
+    [Start|interval({Start+1,Len-1})].
 
-removed_lines(M, OS, RS, Lines, {OrigSource, RefacSource}) ->
-    case has_func_sig(Lines) of
-        true  -> {OF, OA} = find_function(OrigSource, OS), %% Function removed
-                 {{M, OF, OA}, {}};
-        false -> modified_lines(M, OS, RS, {OrigSource, RefacSource}) %% Modified existing function
-    end.
+-spec modified_files(diffs()) -> [filename()].
+modified_files(Diffs) ->
+    lists:map(fun({FileName, _}) -> FileName end, Diffs).
 
-modified_lines(M, OS, RS, {OrigSource, RefacSource}) ->
-    {OF, OA} = find_function(OrigSource, OS),
-    {RF, RA} = find_function(RefacSource, RS),
-    {{M, OF, OA}, {M, RF, RA}}.
+% Gets the diff output, and splits it into hunks
+-spec parse_diff(string()) -> [hunk()].
+parse_diff(DiffStr) ->
+    [_|Files] = string:split(DiffStr, "diff --git ", all),
+    Hunks = lists:map(fun(Str) -> string:split(Str, "\n", all) end, Files),
+    ErlangHunks = lists:filter(fun([Header|_]) -> is_erl_source(Header) end, Hunks),
+    HunksByFiles = lists:map(fun([H,_,_,_|T]) -> {extract_file(H), lists:droplast(T)} end, ErlangHunks),
+    lists:map(fun({FileName, Lines}) ->
+                      {FileName,
+                       lists:filter(fun(Line) -> lists:prefix("@@", Line) end, Lines)} end, HunksByFiles).
 
--spec hunk([string()], filename(), {source(), source()}) -> hunk().
-hunk([Header|DiffLines], FileName, Sources) ->
-    Options = [{capture, [1,2,3,4], list}],
-    % Captures the line numbers and optionally the length for multiline hunks
-    Pattern = "@@ -(\\d+),?(\\d?).*\\+(\\d+),?(\\d?).*",
-    {match, [OrigStart, OrigLen, RefacStart, RefacLen]} = re:run(Header, Pattern, Options),
-    {OS, OL, RS, RL} = line_numbers(OrigStart, OrigLen, RefacStart, RefacLen),
-    % M = erlang:list_to_atom(filename:rootname(FileName, ".erl")),
-    M = FileName,
-    OrigLines = get_lines("-", DiffLines),
-    RefacLines = get_lines("+", DiffLines),
-    case {OrigLines, RefacLines} of
-        {[], _} -> {OrigFun, RefacFun} = added_lines(M, OS + OL, RS + RL, RefacLines, Sources);
-        {_, []} -> {OrigFun, RefacFun} = removed_lines(M, OS + OL, RS + RL, OrigLines, Sources);
-        _       -> {OrigFun, RefacFun} = modified_lines(M, OS + OL, RS + RL, Sources)
-    end,
-    {FileName, {OrigLines, OrigFun, {OS, OL}}, {RefacLines, RefacFun, {RS, RL}}}.
-    
-find_function(Source, LineNum) ->
-    Signature = lists:dropwhile(fun(Line) -> not(is_function_sig(Line)) end,
-                    lists:reverse(lists:sublist(Source, LineNum))),
-    case Signature of
-        []         -> {"", ""}; % TODO: Not a diff in a function, mostly export list elements
-        _Otherwise -> get_name_and_arity(hd(Signature)) % TODO: Rename the signature, it's a list of lines now
+% Extracts the filename from the diff output
+-spec extract_file(string()) -> filename().
+extract_file(DiffLine) ->
+    Options = [global, {capture, [1], list}],
+    {match, [[FileName]]} = re:run(DiffLine,".*a/(.*?\.erl).*", Options),
+    FileName.
+
+% Checks if the given file in the diff output is erlang source code
+-spec is_erl_source([diff_line()]) -> boolean().
+is_erl_source(Header) ->
+    case re:run(Header, ".*(.*\.erl).*") of
+        {match,_}   -> true;
+        nomatch     -> false
     end.
