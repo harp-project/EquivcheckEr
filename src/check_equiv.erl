@@ -9,7 +9,7 @@
 -type source()      :: [line()].
 -type ast()         :: erl_syntax:forms().
 -type tokens()      :: erl_scan:tokens().
--type file_info()   :: {source(), tokens(), ast()}. % TODO: This is a terrible name
+-type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
 
 -include_lib("proper/include/proper.hrl").
 
@@ -68,23 +68,15 @@ test_function(M, F, Type, OrigNode, RefacNode, Options) ->
     proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
 
 % Gets the list of names for changed files based on the diff, and gives back
-% the original and the refactored source, token list and AST for each
--spec read_sources([filename()], commit(), commit()) -> [{filename(), {file_info(), file_info()}}].
-read_sources(ChangedFiles, OrigHash, RefacHash) ->
-    checkout(OrigHash),
-    OrigSources = lists:map(fun utils:read/1, ChangedFiles),
-    OrigTokens = lists:map(fun(Source) -> {_, Tokens, _} = erl_scan:string(Source), Tokens end, OrigSources),
-    OrigASTs = lists:map(fun(FileName) -> {ok, Forms} = epp_dodger:quick_parse_file(FileName), Forms end, ChangedFiles),
+% the token list and AST for each
+-spec read_sources([filename()], commit()) -> [{filename(), file_info()}].
+read_sources(ChangedFiles, CommitHash) ->
+    checkout(CommitHash),
+    Sources = lists:map(fun utils:read/1, ChangedFiles),
+    Tokens = lists:map(fun(Source) -> {_, Tokens, _} = erl_scan:string(Source), Tokens end, Sources),
+    ASTs = lists:map(fun(FileName) -> {ok, Forms} = epp_dodger:quick_parse_file(FileName), Forms end, ChangedFiles),
 
-    checkout(RefacHash),
-    RefacSources = lists:map(fun utils:read/1, ChangedFiles),
-    RefacTokens = lists:map(fun(Source) -> {_, Tokens, _} = erl_scan:string(Source), Tokens end, RefacSources),
-    RefacASTs = lists:map(fun(FileName) -> {ok, Forms} = epp_dodger:quick_parse_file(FileName), Forms end, ChangedFiles),
-
-    Orig = lists:zip3(OrigSources, OrigTokens, OrigASTs),
-    Refac = lists:zip3(RefacSources, RefacTokens, RefacASTs),
-    Info = lists:zip(Orig, Refac),
-    lists:zip(ChangedFiles, Info).
+    lists:zip(Tokens, ASTs).
 
 check_equiv(OrigHash, RefacHash) ->
     Configs = config:load_config(),
