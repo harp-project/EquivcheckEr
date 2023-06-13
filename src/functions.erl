@@ -1,17 +1,21 @@
 -module(functions).
 
--export([functions/2]).
+-export([modified_functions/2]).
 
 -type fun_name()    :: string().
 -type fun_arity()   :: integer().
+-type fun_info()    :: {atom(), string(), integer()}.
 -type line_num()    :: integer().
 -type boundaries()  :: {line_num(), line_num()}.
 -type ast()         :: erl_syntax:forms().
 -type tokens()      :: erl_scan:tokens().
+-type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
+-type filename()    :: string().
+-type diffs()       :: [{filename(), {[line_num()], [line_num()]}}].
 
 % Finds all the functions in the AST, and pairs them up with their first and last line in the source
--spec functions(ast(), tokens()) -> [{fun_name(), fun_arity(), boundaries()}].
-functions(AST, Tokens) ->
+-spec functions(tokens(), ast()) -> [{fun_name(), fun_arity(), boundaries()}].
+functions(Tokens, AST) ->
     Functions = lists:filter(fun(Tree) -> erl_syntax:type(Tree) =:= function end, AST),
     StartLines = lists:map(fun(Tree) -> erl_syntax:get_pos(leftmost_node(Tree)) end, Functions),
     RightmostLines = lists:map(fun(Tree) -> erl_syntax:get_pos(rightmost_node(Tree)) end, Functions),
@@ -59,3 +63,45 @@ offset(LineNum, Tokens) ->
     % We use dot as the last token from the function
     {value, EndToken} = lists:search(fun(T) -> element(1, T) =:= dot end, Rest),
     element(2, EndToken).
+
+% Finds all the modified functions
+-spec modified_functions(diffs(), [{filename(), file_info(), file_info()}]) ->
+    {[fun_info()], [fun_info()]}.
+modified_functions(Diffs, FileInfos) ->
+    ChangesByFile = lists:map(fun({FileName, OrigInfo, RefacInfo}) ->
+                                      {_, LineNums} = lists:keyfind(FileName, 1, Diffs),
+                                      {FileName, LineNums, OrigInfo, RefacInfo} end, FileInfos),
+    {OrigChanged, RefacChanged} = lists:unzip(lists:map(fun modified/1, ChangesByFile)),
+    OrigCombined = lists:concat(OrigChanged),
+    RefacCombined = lists:concat(RefacChanged),
+    {OrigCombined, RefacCombined}.
+
+% Finds the modified functions for a single file
+-spec modified({filename(), boundaries(), file_info(), file_info()}) ->
+    {[fun_info()], [fun_info()]}.
+modified({FileName, {OrigLineNums, RefacLineNums},
+      {OrigTokens, OrigAST},
+      {RefacTokens, RefacAST}}) ->
+    OrigFuns = functions(OrigTokens, OrigAST),
+    RefacFuns = functions(RefacTokens, RefacAST),
+    Module = utils:get_module(FileName),
+    OrigChanged = lists:map(fun({Name, Arity, _}) -> {Module, Name, Arity} end, changed(OrigLineNums, OrigFuns)),
+    RefacChanged = lists:map(fun({Name, Arity, _}) -> {Module, Name, Arity} end, changed(RefacLineNums, RefacFuns)),
+    {OrigChanged, RefacChanged}.
+
+% Predicate for deciding if given line is inside the given function boundaries
+% -spec inside(boundaries(), line_num()) -> boolean().
+inside({Start, End}, Line) ->
+    Line >= Start andalso Line =< End.
+
+
+% Filters out those functions that were affected by the change
+% -spec changed(line_nums(), {fun_name(), fun_arity(), boundaries()}) -> {fun_name(), fun_arity(), boundaries()}.
+changed(LineNums, Funs) ->
+    lists:filter(fun({_, _, Boundaries}) ->
+                         case lists:search(fun(Line) -> inside(Boundaries, Line) end, LineNums) of
+                             false -> false;
+                             _     -> true
+                         end
+                 end,
+                 Funs).
