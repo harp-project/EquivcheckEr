@@ -45,8 +45,6 @@ bracket([H|[]], Acc, Level) when ([H] =:= "]") and (Level =:= 0) -> [Acc ++ "]"]
 bracket([H|T], Acc, Level) when ([H] =:= "]") and (Level =/= 0) -> bracket(T, Acc ++ "]", Level - 1);
 bracket([H|T], Acc, Level) -> bracket(T, Acc ++ [H], Level).
 
--spec get_module(string()) -> atom().
-get_module(FileName) ->
+-spec filename_to_module(string()) -> atom().
+filename_to_module(FileName) ->
     erlang:list_to_atom(filename:basename(FileName, ".erl")).
-
-

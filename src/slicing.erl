@@ -1,35 +1,36 @@
 %% This module finds the functions that will be tested with random data
-%% based on the diff output of the two commits and the type of refactoring
-%% that was done
+%% based on the diff output of the two commits
 -module(slicing).
 
 -export([scope/2]).
 
--type fun_info() :: {atom(), string(), integer()}.
+-type types()       :: [string()].
+-type fun_info()    :: {mfa(), types()}.
 
-% These all have to be called from the directory of the source code! TODO, pass the folder as argument?
+-spec scope([fun_info()], [fun_info()]) -> [fun_info()].
+scope(OrigFuns, RefacFuns) ->
 
--spec scope(string(), [string()]) -> {[{atom(), atom(), proper_types:type()}]}.
-scope(Diff, Sources) ->
-    Hunks = diff:diff(Diff, Sources),
+    {SameSig, DiffSig} = lists:partition(fun(Fun) -> lists:member(Fun, OrigFuns) end, RefacFuns),
+    {DiffSig, SameSig}.
 
-    NewFuncs = new(Hunks),
-    RemovedFuncs = removed(Hunks),
+    % NewFuncs = new(Hunks),
+    % RemovedFuncs = removed(Hunks),
 
-    ModifiedFuncs = modified(Hunks),
-    {Callees, Callers} = case lists:any(fun signature_change/1, ModifiedFuncs) of
-                            true  -> has_sig_change(ModifiedFuncs);
-                            false -> no_sig_change(ModifiedFuncs)
-                        end,
-    Files = extract_files(Callees, Callers),
-    {Files, typing:add_types(Callers)}.
+    % ModifiedFuncs = modified(Hunks),
+    % {Callees, Callers} = case lists:any(fun signature_change/1, ModifiedFuncs) of
+    %                         true  -> has_sig_change(ModifiedFuncs);
+    %                         false -> no_sig_change(ModifiedFuncs)
+    %                     end,
+    % Files = extract_files(Callees, Callers),
+    % {Files, typing:add_types(Callers)}.
+
 
 -spec find_callers({string(), string(), integer()}) -> [fun_info()].
 find_callers({FileName, FunName, Arity}) ->
     FunNameAtom = list_to_atom(FunName),
     {_, Folder} = file:get_cwd(),
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunNameAtom, Arity, [Folder], 4),
-    lists:map(fun({{FileName, F, A}, _}) -> {get_module(FileName), erlang:atom_to_list(F), A} end, Funs).
+    lists:map(fun({{FileName, F, A}, _}) -> {utils:filename_to_module(FileName), erlang:atom_to_list(F), A} end, Funs).
 
 has_sig_change(Funs) ->
     NewFuns = lists:map(fun({_, Fun}) -> Fun end, lists:filter(fun signature_change/1, Funs)),
@@ -66,6 +67,3 @@ extract_files(Callees, Callers) ->
     CallersFiles = lists:map(fun({Module, _, _}) -> erlang:atom_to_list(Module) ++ ".erl" end, Callers),
     lists:uniq(CalleesFiles ++ CallersFiles).
 
--spec get_module(string()) -> atom().
-get_module(FileName) ->
-    erlang:list_to_atom(filename:basename(FileName, ".erl")).
