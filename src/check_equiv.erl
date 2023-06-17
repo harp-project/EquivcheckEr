@@ -78,6 +78,17 @@ read_sources(ChangedFiles, CommitHash) ->
 
     lists:zip(Tokens, ASTs).
 
+get_typeinfo(OrigHash, RefacHash) ->
+    checkout(OrigHash),
+    TyperOut = os:cmd("typer -r ."),
+    OrigTypes = typing:types(TyperOut),
+
+    checkout(RefacHash),
+    TyperOut2 = os:cmd("typer -r ."),
+    RefacTypes = typing:types(TyperOut2),
+
+    {OrigTypes, RefacTypes}.
+
 check_equiv(OrigHash, RefacHash) ->
     Configs = config:load_config(),
     typing:ensure_plt(Configs),
@@ -94,10 +105,13 @@ check_equiv(OrigHash, RefacHash) ->
     Files = diff:modified_files(Diffs),
 
     FileInfos = lists:zip3(Files, read_sources(Files, OrigHash), read_sources(Files, RefacHash)),
-    ModifiedFuns = functions:modified_functions(Diffs, FileInfos),
+    {OrigTypeInfo, RefacTypeInfo} = get_typeinfo(OrigHash, RefacHash),
+    {OrigModFuns, RefacModFuns} = functions:modified_functions(Diffs, FileInfos),
 
     % Gets back the functions that have to be tested
-    FunsToTest = typing:add_types(slicing:scope(ModifiedFuns)),
+    {Diff, Same} = slicing:scope(typing:add_types(OrigModFuns, OrigTypeInfo),
+                               typing:add_types(RefacModFuns, RefacTypeInfo)),
+    FunsToTest = Same,
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
