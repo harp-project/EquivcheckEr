@@ -11,12 +11,9 @@
 -type tokens()      :: erl_scan:tokens().
 -type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
 
--include_lib("proper/include/proper.hrl").
-
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
 -define(ORIGINAL_CODE_FOLDER, "orig").
 -define(REFACTORED_CODE_FOLDER, "refac").
--define(PEER_TIMEOUT, 1000).
 
 -spec copy_project(string()) -> string().
 copy_project(ProjFolder) ->
@@ -46,27 +43,6 @@ stop_nodes(Orig, Refac) ->
     peer:stop(Orig),
     peer:stop(Refac).
 
--spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
-eval_func(Node, M, F, A) ->
-    try peer:call(Node, M, F, A, ?PEER_TIMEOUT) of
-        Val -> {normal, Val}
-    catch
-        error:Error -> Error
-    end.
-
-% Spawns a process on each node that evaluates the function and
-% sends back the result to this process
--spec prop_same_output(pid(), pid(), atom(), atom(), [term()]) -> boolean().
-prop_same_output(OrigNode, RefacNode, M, F, A) ->
-    
-    Out1 = eval_func(OrigNode, M, F, A),
-    Out2 = eval_func(RefacNode, M, F, A),
-
-    Out1 =:= Out2.
-
-test_function(M, F, Type, OrigNode, RefacNode, Options) ->
-    proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
-
 % Gets the list of names for changed files based on the diff, and gives back
 % the token list and AST for each
 -spec read_sources([filename()], commit()) -> [{filename(), file_info()}].
@@ -91,9 +67,8 @@ get_typeinfo(OrigHash, RefacHash) ->
 
 check_equiv(OrigHash, RefacHash) ->
     Configs = config:load_config(),
-    typing:ensure_plt(Configs),
+    % typing:ensure_plt(Configs),
     application:start(wrangler), % TODO
-    proper_typeserver:start(),
     {_, ProjFolder} = file:get_cwd(),
 
     copy_project(ProjFolder),
@@ -103,15 +78,16 @@ check_equiv(OrigHash, RefacHash) ->
     DiffOutput = os:cmd("git diff -U0 --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
     Diffs = diff:diff(DiffOutput),
     Files = diff:modified_files(Diffs),
+    % TODO Compile everything for now
+    % Files = string:split(string:trim(os:cmd("find -name '*.erl'")), "\n", all),
 
     FileInfos = lists:zip3(Files, read_sources(Files, OrigHash), read_sources(Files, RefacHash)),
     {OrigTypeInfo, RefacTypeInfo} = get_typeinfo(OrigHash, RefacHash),
     {OrigModFuns, RefacModFuns} = functions:modified_functions(Diffs, FileInfos),
 
     % Gets back the functions that have to be tested
-    {Diff, Same} = slicing:scope(typing:add_types(OrigModFuns, OrigTypeInfo),
+    FunsToTest = slicing:scope(typing:add_types(OrigModFuns, OrigTypeInfo),
                                typing:add_types(RefacModFuns, RefacTypeInfo)),
-    FunsToTest = Same,
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
@@ -125,21 +101,9 @@ check_equiv(OrigHash, RefacHash) ->
 
     {OrigNode, RefacNode} = start_nodes(),
 
-    ProperOpts = [long_result, {on_output, fun(X,Y) -> utils:count_tests(X,Y) end}],
-    % ProperOpts = [long_result, quiet],
-
-    % A result is a tuple: {Module, Function, Counterexample}
-    % If no counterexample is found, the third value is 'true' instead
-    Res = lists:map(fun({M, F, Type}) ->
-                            {M, F, test_function(M, F, Type, OrigNode, RefacNode, ProperOpts)}
-                    end, FunsToTest),
-
-    % Drop the passed results, we need the counterexamples
-    FailedFuns = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, Res),
-
+    Result = test:run_tests(FunsToTest, OrigNode, RefacNode, RefacTypeInfo),
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler), % TODO
-    proper_typeserver:stop(),
-    {Res, FailedFuns}.
+    Result.

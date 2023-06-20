@@ -2,7 +2,8 @@
 %% based on the diff output of the two commits
 -module(slicing).
 
--export([scope/2]).
+-export([scope/2,
+        find_callers/1]).
 
 -type types()       :: [string()].
 -type fun_info()    :: {mfa(), types()}.
@@ -11,7 +12,7 @@
 scope(OrigFuns, RefacFuns) ->
 
     {SameSig, DiffSig} = lists:partition(fun(Fun) -> lists:member(Fun, OrigFuns) end, RefacFuns),
-    {DiffSig, SameSig}.
+    SameSig.
 
     % NewFuncs = new(Hunks),
     % RemovedFuncs = removed(Hunks),
@@ -25,11 +26,11 @@ scope(OrigFuns, RefacFuns) ->
     % {Files, typing:add_types(Callers)}.
 
 
--spec find_callers({string(), string(), integer()}) -> [fun_info()].
-find_callers({FileName, FunName, Arity}) ->
-    FunNameAtom = list_to_atom(FunName),
+-spec find_callers(mfa()) -> [mfa()].
+find_callers({Module, FunName, Arity}) ->
+    FileName = utils:module_to_filename(Module),
     {_, Folder} = file:get_cwd(),
-    {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunNameAtom, Arity, [Folder], 4),
+    {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunName, Arity, [Folder], 4),
     lists:map(fun({{FileName, F, A}, _}) -> {utils:filename_to_module(FileName), erlang:atom_to_list(F), A} end, Funs).
 
 has_sig_change(Funs) ->

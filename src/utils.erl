@@ -1,6 +1,6 @@
 -module(utils).
 
-show_result({_, Failed}) ->
+show_result(Failed) ->
     io:format("Results: ~p~n", [Failed]).
 
 count_tests("Failed: After ~b test(s).~n", Args) ->
@@ -48,3 +48,7 @@ bracket([H|T], Acc, Level) -> bracket(T, Acc ++ [H], Level).
 -spec filename_to_module(string()) -> atom().
 filename_to_module(FileName) ->
     erlang:list_to_atom(filename:basename(FileName, ".erl")).
+
+-spec module_to_filename(atom()) -> string().
+module_to_filename(Module) ->
+    erlang:atom_to_list(Module) ++ ".erl".
