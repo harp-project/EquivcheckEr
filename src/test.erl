@@ -28,10 +28,10 @@ run_tests(Functions, OrigNode, RefacNode, Types, Results) ->
                             {M, F, test_function(M, F, Type, OrigNode, RefacNode, ProperOpts)}
                     end, FunctionsTyped),
 
-    Arity = fun({M, F, Eq}) -> {M, F, length(Eq)} end,
-    FailedFuns = lists:map(Arity, lists:filter(fun({_, _, Eq}) -> Eq =/= true end, Res)),
-    Callers = typing:add_types(lists:flatmap(fun slicing:find_callers/1, FailedFuns), Types),
-    run_tests(Callers, OrigNode, RefacNode, Types, [Res|Results]).
+    FailedFuns = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, Res),
+    FailedMFA = lists:map(fun({M, F, Eq}) -> {M, F, length(Eq)} end, FailedFuns),
+    Callers = typing:add_types(lists:uniq(lists:flatmap(fun slicing:find_callers/1, FailedMFA)), Types),
+    run_tests(Callers, OrigNode, RefacNode, Types, [FailedFuns|Results]).
 
 
 -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
