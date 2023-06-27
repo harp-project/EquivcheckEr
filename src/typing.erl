@@ -6,7 +6,6 @@
 -type type_info()   :: [{module(), [{string(), arity()}]}].
 
 -export([types/1,
-         get_type/2,
          add_types/2,
          ensure_plt/1]).
 
@@ -29,10 +28,17 @@ get_type({M,F,A}, TypeInfo) ->
         false            -> lists:duplicate(A, "any()") % If the type is not found, use any()
     end.
 
-%% Given a list of functions and type info, return a new list with the types added
--spec add_types([mfa()], type_info()) -> [{mfa(), [type()]}].
-add_types(Funs, TypeInfo) ->
-    lists:map(fun(Fun) -> {Fun, get_type(Fun, TypeInfo)} end, Funs).
+% Returns a closure that contains the type information needed
+% to type the functions
+-spec add_types(type_info(), type_info()) -> fun().
+add_types(OrigTypeInfo, RefacTypeInfo) ->
+    fun(Funs, Version) ->
+            case Version of
+                original   -> lists:map(fun(Fun) -> {Fun, get_type(Fun, OrigTypeInfo)} end, Funs);
+                refactored -> lists:map(fun(Fun) -> {Fun, get_type(Fun, RefacTypeInfo)} end, Funs)
+            end
+    end.
+
 
 % Parses the output of typer into a list of tuples in the form of {Filename, [Spec lines]}
 -spec parse_typer(string()) -> [{module(), [{string(), arity()}]}] | atom().

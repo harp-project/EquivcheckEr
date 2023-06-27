@@ -1,6 +1,7 @@
 -module(functions).
 
--export([modified_functions/2]).
+-export([modified_functions/2,
+        callgraph/2]).
 
 -type fun_name()    :: string().
 -type fun_arity()   :: integer().
@@ -104,3 +105,21 @@ changed(LineNums, Funs) ->
                          end
                  end,
                  Funs).
+
+callgraph(OrigHash, RefacHash) ->
+    fun(MFA, Version) ->
+            case Version of
+                original -> find_callers(MFA, OrigHash);
+                refactored -> find_callers(MFA, RefacHash)
+            end
+    end.
+
+-spec find_callers(mfa(), atom()) -> [mfa()].
+find_callers({Module, FunName, Arity}, CommitHash) ->
+    repo:checkout(CommitHash),
+    FileName = utils:module_to_filename(Module),
+    FunNameAtom = erlang:list_to_atom(FunName),
+    {_, Folder} = file:get_cwd(),
+    {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunNameAtom, Arity, [Folder], 4),
+    lists:map(fun({{FileName, F, A}, _}) -> {utils:filename_to_module(FileName), erlang:atom_to_list(F), A} end, Funs).
+

@@ -2,18 +2,18 @@
 
 -type type() :: string().
 
--export([run_tests/4]).
+-export([run_tests/5]).
 
 -define(PEER_TIMEOUT, 1000).
 
 -include_lib("proper/include/proper.hrl").
 
-run_tests(Functions, OrigNode, RefacNode, Types) ->
-    run_tests(Functions, OrigNode, RefacNode, Types, []).
+run_tests(Functions, OrigNode, RefacNode, Types, CallGraph) ->
+    run_tests(Functions, OrigNode, RefacNode, Types, CallGraph, []).
 
-run_tests([], _, _, _, Results) ->
+run_tests([], _, _, _, _, Results) ->
     Results;
-run_tests(Functions, OrigNode, RefacNode, Types, Results) ->
+run_tests(Functions, OrigNode, RefacNode, Types, CallGraph, Results) ->
     % proper:quickchek/2 stops the server, so it has to be started every time
     proper_typeserver:start(),
     ProperOpts = [long_result, {on_output, fun(X,Y) -> utils:count_tests(X,Y) end}],
@@ -29,9 +29,9 @@ run_tests(Functions, OrigNode, RefacNode, Types, Results) ->
                     end, FunctionsTyped),
 
     FailedFuns = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, Res),
-    FailedMFA = lists:map(fun({M, F, Eq}) -> {M, F, length(Eq)} end, FailedFuns),
-    Callers = typing:add_types(lists:uniq(lists:flatmap(fun slicing:find_callers/1, FailedMFA)), Types),
-    run_tests(Callers, OrigNode, RefacNode, Types, [FailedFuns|Results]).
+    FailedMFA = lists:map(fun({M, F, Eq}) -> {M, erlang:atom_to_list(F), length(Eq)} end, FailedFuns),
+    Callers = Types(lists:uniq(lists:flatmap(fun(MFA) -> CallGraph(MFA, refactored) end, FailedMFA)), refactored),
+    run_tests(Callers, OrigNode, RefacNode, Types, CallGraph, FailedFuns ++ Results).
 
 
 -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.

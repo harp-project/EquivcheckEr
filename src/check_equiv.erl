@@ -3,6 +3,8 @@
 -compile(export_all). % Exports all functions
 -compile(debug_info).
 
+-define(TEMP_FOLDER, "tmp"). % TODO use /tmp
+
 -type filename()    :: string().
 -type commit()      :: string().
 -type line()        :: string().
@@ -11,18 +13,8 @@
 -type tokens()      :: erl_scan:tokens().
 -type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
 
--define(TEMP_FOLDER, "tmp"). % TODO use /tmp
 -define(ORIGINAL_CODE_FOLDER, "orig").
 -define(REFACTORED_CODE_FOLDER, "refac").
-
--spec copy_project(string()) -> string().
-copy_project(ProjFolder) ->
-    file:make_dir(?TEMP_FOLDER),
-    os:cmd("git clone " ++ ProjFolder ++ " " ++ ?TEMP_FOLDER).
-
--spec checkout(string()) -> string().
-checkout(Hash) ->
-    os:cmd("git checkout " ++ Hash).
 
 cleanup() ->
     % TODO Handle error
@@ -47,7 +39,7 @@ stop_nodes(Orig, Refac) ->
 % the token list and AST for each
 -spec read_sources([filename()], commit()) -> [{filename(), file_info()}].
 read_sources(ChangedFiles, CommitHash) ->
-    checkout(CommitHash),
+    repo:checkout(CommitHash),
     Sources = lists:map(fun utils:read/1, ChangedFiles),
     Tokens = lists:map(fun(Source) -> {_, Tokens, _} = erl_scan:string(Source), Tokens end, Sources),
     ASTs = lists:map(fun(FileName) -> {ok, Forms} = epp_dodger:quick_parse_file(FileName), Forms end, ChangedFiles),
@@ -55,11 +47,11 @@ read_sources(ChangedFiles, CommitHash) ->
     lists:zip(Tokens, ASTs).
 
 get_typeinfo(OrigHash, RefacHash) ->
-    checkout(OrigHash),
+    repo:checkout(OrigHash),
     TyperOut = os:cmd("typer -r ."),
     OrigTypes = typing:types(TyperOut),
 
-    checkout(RefacHash),
+    repo:checkout(RefacHash),
     TyperOut2 = os:cmd("typer -r ."),
     RefacTypes = typing:types(TyperOut2),
 
@@ -71,11 +63,11 @@ check_equiv(OrigHash, RefacHash) ->
     application:start(wrangler), % TODO
     {_, ProjFolder} = file:get_cwd(),
 
-    copy_project(ProjFolder),
+    repo:copy(ProjFolder, ?TEMP_FOLDER),
     file:set_cwd(?TEMP_FOLDER),
-    checkout(RefacHash), % Scoping needs the repo to be at the commit containing the refactored code
+    repo:checkout(RefacHash), % Scoping needs the repo to be at the commit containing the refactored code
 
-    DiffOutput = os:cmd("git diff -U0 --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
+    DiffOutput = repo:diff_output(OrigHash, RefacHash),
     Diffs = diff:diff(DiffOutput),
     Files = diff:modified_files(Diffs),
     % TODO Compile everything for now
@@ -85,23 +77,25 @@ check_equiv(OrigHash, RefacHash) ->
     {OrigTypeInfo, RefacTypeInfo} = get_typeinfo(OrigHash, RefacHash),
     {OrigModFuns, RefacModFuns} = functions:modified_functions(Diffs, FileInfos),
 
+    CallGraph = functions:callgraph(OrigHash, RefacHash),
+    Types = typing:add_types(OrigTypeInfo, RefacTypeInfo),
+
     % Gets back the functions that have to be tested
-    FunsToTest = slicing:scope(typing:add_types(OrigModFuns, OrigTypeInfo),
-                               typing:add_types(RefacModFuns, RefacTypeInfo)),
+    FunsToTest = slicing:scope(OrigModFuns, RefacModFuns, CallGraph, Types),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
     % function repeatedly side-by-side
-    checkout(OrigHash),
+    repo:checkout(OrigHash),
     % TODO Files should contain all the used modules, not just the ones affected by the change
     compile(Files, ?ORIGINAL_CODE_FOLDER),
 
-    checkout(RefacHash),
+    repo:checkout(RefacHash),
     compile(Files, ?REFACTORED_CODE_FOLDER),
 
     {OrigNode, RefacNode} = start_nodes(),
 
-    Result = test:run_tests(FunsToTest, OrigNode, RefacNode, RefacTypeInfo),
+    Result = test:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
