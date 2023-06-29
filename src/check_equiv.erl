@@ -93,7 +93,7 @@ check_equiv(OrigHash, RefacHash) ->
 
     {OrigNode, RefacNode} = start_nodes(),
 
-    Result = test:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
+    Result = testing:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
