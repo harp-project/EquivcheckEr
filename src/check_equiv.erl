@@ -7,8 +7,6 @@
 
 -type filename()    :: string().
 -type commit()      :: string().
--type line()        :: string().
--type source()      :: [line()].
 -type ast()         :: erl_syntax:forms().
 -type tokens()      :: erl_scan:tokens().
 -type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
