@@ -17,7 +17,9 @@ types(TyperOutput) ->
     parse_typer(TyperOutput).
 
 %% Returns the list of the types of the arguments
--spec get_type(mfa(), type_info()) -> [type()].
+-spec get_type(mfa(), type_info() | atom()) -> [type()].
+get_type({_,_,A}, typer_error) ->
+    lists:duplicate(A, "any()"); % If the type is not found, use any()
 get_type({M,F,A}, TypeInfo) ->
     % TODO Get rid of the nested case blocks
     case lists:keyfind(M, 1, TypeInfo) of
