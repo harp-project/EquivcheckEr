@@ -28,10 +28,17 @@ split_args(SpecStr) -> args(SpecStr, "").
 
 args([], Acc) -> [Acc];
 args([H|T], _) when [H] =:= "(" and (T =:= ")") -> "";
+args([H|T], Acc) when [H] =:= "(" -> paren(T, Acc ++ "(", 0);
 args([H|T], Acc) when [H] =:= "{" -> curly(T, "{" ++ Acc, 0);
 args([H|T], Acc) when [H] =:= "," -> [Acc|args(T, "")];
 args([H|T], Acc) when [H] =:= "[" -> bracket(T, "[" ++ Acc, 0);
 args([H|T], Acc) -> args(T, Acc ++ [H]).
+
+paren([H|T], Acc, Level) when [H] =:= "(" -> paren(T, Acc ++ "(", Level + 1);
+paren([H|[_|T]], Acc, Level) when ([H] =:= ")") and (Level =:= 0) -> args(T, Acc ++ ") ");
+paren([H|[]], Acc, Level) when ([H] =:= ")") and (Level =:= 0) -> [Acc ++ ")"];
+paren([H|T], Acc, Level) when ([H] =:= ")") and (Level =/= 0) -> paren(T, Acc ++ ")", Level - 1);
+paren([H|T], Acc, Level) -> paren(T, Acc ++ [H], Level).
 
 curly([H|T], Acc, Level) when [H] =:= "{" -> curly(T, Acc ++ "{", Level + 1);
 curly([H|[_|T]], Acc, Level) when ([H] =:= "}") and (Level =:= 0) -> [Acc ++ "}"|args(T, "")];
