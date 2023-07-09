@@ -78,15 +78,15 @@ modified_functions(Diffs, FileInfos) ->
 
 % Finds the modified functions for a single file
 -spec modified({filename(), boundaries(), file_info(), file_info()}) ->
-    {[mfa()], [mfa()]}.
+    {[{filename(), mfa()}], [{filename(), mfa()}]}.
 modified({FileName, {OrigLineNums, RefacLineNums},
       {OrigTokens, OrigAST},
       {RefacTokens, RefacAST}}) ->
     OrigFuns = functions(OrigTokens, OrigAST),
     RefacFuns = functions(RefacTokens, RefacAST),
     Module = utils:filename_to_module(FileName),
-    OrigChanged = lists:map(fun({Name, Arity, _}) -> {Module, Name, Arity} end, changed(OrigLineNums, OrigFuns)),
-    RefacChanged = lists:map(fun({Name, Arity, _}) -> {Module, Name, Arity} end, changed(RefacLineNums, RefacFuns)),
+    OrigChanged = lists:map(fun({Name, Arity, _}) -> {FileName, {Module, Name, Arity}} end, changed(OrigLineNums, OrigFuns)),
+    RefacChanged = lists:map(fun({Name, Arity, _}) -> {FileName, {Module, Name, Arity}} end, changed(RefacLineNums, RefacFuns)),
     {OrigChanged, RefacChanged}.
 
 % Predicate for deciding if given line is inside the given function boundaries
