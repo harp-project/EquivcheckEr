@@ -20,7 +20,7 @@ functions(Tokens, AST) ->
     StartLines = lists:map(fun(Tree) -> erl_syntax:get_pos(leftmost_node(Tree)) end, Functions),
     RightmostLines = lists:map(fun(Tree) -> erl_syntax:get_pos(rightmost_node(Tree)) end, Functions),
     EndLines = lists:map(fun(EndLine) -> offset(EndLine, Tokens) end, RightmostLines),
-    Names = lists:map(fun(Tree) -> erl_syntax:atom_literal(erl_syntax:function_name(Tree)) end, Functions),
+    Names = lists:map(fun(Tree) -> erl_syntax:atom_value(erl_syntax:function_name(Tree)) end, Functions),
     Arities = lists:map(fun erl_syntax:function_arity/1, Functions),
     lists:zip3(Names, Arities, lists:zip(StartLines, EndLines)).
 
@@ -117,8 +117,7 @@ callgraph(OrigHash, RefacHash) ->
 % -spec find_callers(mfa(), atom()) -> [mfa()].
 find_callers({FileName, FunName, Arity}, CommitHash) ->
     repo:checkout(CommitHash),
-    FunNameAtom = erlang:list_to_atom(FunName),
     {_, Folder} = file:get_cwd(),
     % TODO Stop wrangler from printing to stdout
-    {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunNameAtom, Arity, [Folder], 4),
-    lists:map(fun({{FileName, F, A}, _}) -> {FileName, {utils:filename_to_module(FileName), erlang:atom_to_list(F), A}} end, Funs).
+    {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunName, Arity, [Folder], 4),
+    lists:map(fun({{FileName, F, A}, _}) -> {FileName, {utils:filename_to_module(FileName), F, A}} end, Funs).

@@ -67,14 +67,14 @@ parse_typer(TyperOutput) ->
     end.
 
 % Given a function spec, gives back the name and input types
--spec parse_spec(string()) -> {string(), [string()]}.
+-spec parse_spec(string()) -> {atom(), [string()]}.
 parse_spec(SpecStr) ->
     Options = [global, {capture, [1,2], list}],
     {match, [[FunName, ArgsStr]]} = re:run(SpecStr, "-spec (.*?)\\((.*)\\) ->.*", Options),
     
     case ArgsStr of
-        []   -> {FunName, ""}; % Nullary function
-        Args -> {FunName, utils:split_args(Args)}
+        []   -> {list_to_atom(FunName), ""}; % Nullary function
+        Args -> {list_to_atom(FunName), utils:split_args(Args)}
     end.
 
 % PLT (Persistent Lookup Table) related functions
