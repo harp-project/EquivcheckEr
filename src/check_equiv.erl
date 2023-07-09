@@ -46,11 +46,11 @@ read_sources(ChangedFiles, CommitHash) ->
 
 get_typeinfo(OrigHash, RefacHash) ->
     repo:checkout(OrigHash),
-    TyperOut = os:cmd("typer -r ."),
+    TyperOut = os:cmd("typer -I include -r ."),
     OrigTypes = typing:types(TyperOut),
 
     repo:checkout(RefacHash),
-    TyperOut2 = os:cmd("typer -r ."),
+    TyperOut2 = os:cmd("typer -I include -r ."),
     RefacTypes = typing:types(TyperOut2),
 
     {OrigTypes, RefacTypes}.
