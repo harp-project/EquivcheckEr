@@ -51,8 +51,12 @@ parse_typer(TyperOutput) ->
             Files = string:split(string:trim(TyperOutput), "\n\n", all),
 
             Options = [global, {capture, [1,2], list}, dotall],
-            Matches = lists:map(fun(FileSpecs) ->
-                                re:run(FileSpecs, ".*File: \"./(.*?)\"\n.*---\n(.*)", Options) end, Files),
+            Re = lists:map(fun(FileSpecs) ->
+                                   re:run(FileSpecs, ".*File: \"./(.*?)\"\n.*---\n(.*)", Options)
+                           end, Files),
+
+            Matches = lists:filter(fun(X) -> X =/= nomatch end, Re),
+
             Specs = lists:map(fun({_, [[File , Specs]]}) ->
                                 {File, Specs} end, Matches),
 
