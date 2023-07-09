@@ -34,10 +34,10 @@ get_type({M,F,A}, TypeInfo) ->
 % to type the functions
 -spec add_types(type_info(), type_info()) -> fun().
 add_types(OrigTypeInfo, RefacTypeInfo) ->
-    fun(Funs, Version) ->
+    fun(Fun, Version) ->
             case Version of
-                original   -> lists:map(fun(Fun) -> {Fun, get_type(Fun, OrigTypeInfo)} end, Funs);
-                refactored -> lists:map(fun(Fun) -> {Fun, get_type(Fun, RefacTypeInfo)} end, Funs)
+                original   -> get_type(Fun, OrigTypeInfo);
+                refactored -> get_type(Fun, RefacTypeInfo)
             end
     end.
 
