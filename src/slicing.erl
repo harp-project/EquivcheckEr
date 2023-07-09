@@ -3,17 +3,22 @@
 
 -export([scope/4]).
 
--type types()       :: [string()].
--type fun_info()    :: {mfa(), types()}.
+-type types()     :: [string()].
+-type filename()  :: string().
+-type fun_info()  :: {filename(), mfa()}.
+-type fun_typed() :: {filename(), mfa(), types()}.
 
 % Get all the modified functions, separates them into two groups
 % based on whether their interface changed, and if so, finds the callers
 % based on the callgraph
--spec scope([mfa()], [mfa()], fun(), fun()) -> [fun_info()].
-scope(OrigMFAs, RefacMFAs, CallGraph, Types) ->
-    OrigFuns = Types(OrigMFAs, original),
-    RefacFuns = Types(RefacMFAs, refactored),
+-spec scope([fun_info()], [fun_info()], fun(), fun()) -> [fun_typed()].
+scope(OrigModFuns, RefacModFuns, CallGraph, Types) ->
+    OrigFunsTyped = lists:map(fun({FileName, MFA}) -> {FileName, MFA, Types(MFA, original)} end, OrigModFuns),
+    RefacFunsTyped = lists:map(fun({FileName, MFA}) -> {FileName, MFA, Types(MFA, refactored)} end, RefacModFuns),
 
-    {SameSig, DiffSig} = lists:partition(fun(Fun) -> lists:member(Fun, RefacFuns) end, OrigFuns),
-    Callers = lists:flatmap(fun(Fun) -> CallGraph(element(1,Fun), original) end, DiffSig),
-    lists:uniq(Types(Callers, original) ++ SameSig).
+    {SameSig, DiffSig} = lists:partition(fun(Fun) -> lists:member(Fun, RefacFunsTyped) end, OrigFunsTyped),
+    Callers = lists:flatmap(fun({FileName, {_, F, A}, _}) -> CallGraph({FileName, F, A}, original) end, DiffSig),
+
+    CallersTyped = lists:map(fun({FileName, MFA}) -> {FileName, MFA, Types(MFA, original)} end, Callers),
+
+    lists:uniq(CallersTyped ++ SameSig).

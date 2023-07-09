@@ -20,18 +20,21 @@ run_tests(Functions, OrigNode, RefacNode, Types, CallGraph, Results) ->
     % ProperOpts = [long_result, quiet],
 
     % Convert type information to PropEr type
-    FunctionsTyped = lists:map(fun convert_type/1, Functions),
+    FunctionsTyped = lists:map(fun({FileName, {M,F,A}, ArgTypes}) -> {FileName, {M, F, A}, convert_type(M,ArgTypes)} end, Functions),
 
     % A result is a tuple: {Module, Function, Counterexample}
     % If no counterexample is found, the third value is 'true' instead
-    Res = lists:map(fun({M, F, Type}) ->
-                            {M, F, test_function(M, F, Type, OrigNode, RefacNode, ProperOpts)}
+    Res = lists:map(fun({FileName, {M, F, A}, Type}) ->
+                            {FileName, {M, F, A}, test_function(M, F, Type, OrigNode, RefacNode, ProperOpts)}
                     end, FunctionsTyped),
 
     FailedFuns = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, Res),
-    FailedMFA = lists:map(fun({M, F, Eq}) -> {M, erlang:atom_to_list(F), length(Eq)} end, FailedFuns),
-    Callers = Types(lists:uniq(lists:flatmap(fun(MFA) -> CallGraph(MFA, refactored) end, FailedMFA)), refactored),
-    run_tests(Callers, OrigNode, RefacNode, Types, CallGraph, FailedFuns ++ Results).
+    FailedMFA = lists:map(fun({FileName, {M,F,A}, _}) -> {FileName, {M, F, A}} end, FailedFuns),
+
+    Callers = lists:uniq(lists:flatmap(fun({FileName, {_,F,A}}) -> CallGraph({FileName, F, A}, refactored) end, FailedMFA)),
+    CallersTyped = lists:map(fun({FileName, MFA}) -> {FileName, MFA, Types(MFA, refactored)} end, Callers),
+
+    run_tests(CallersTyped, OrigNode, RefacNode, Types, CallGraph, FailedFuns ++ Results).
 
 
 -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
@@ -56,10 +59,10 @@ test_function(M, F, Type, OrigNode, RefacNode, Options) ->
     proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
 
 % Gets a single function and finds the PropEr types for its arguments
--spec convert_type({mfa(), [type()]}) -> 
-  {atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}.
-convert_type({{M, F, _}, ArgTypes}) ->
-    {M, erlang:list_to_atom(F), lists:map(fun(ArgType) -> get_type({M, ArgType}) end, ArgTypes)}.
+% -spec convert_type({mfa(), [type()]}) -> 
+  % {atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}.
+convert_type(M, ArgTypes) ->
+    lists:map(fun(ArgType) -> get_type({M, ArgType}) end, ArgTypes).
 
 % Convert type string to PropEr type
 -spec get_type({atom(), string()}) ->

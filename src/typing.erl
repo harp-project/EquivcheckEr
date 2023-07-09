@@ -3,7 +3,7 @@
 -module(typing).
 
 -type type()        :: string().
--type type_info()   :: [{module(), [{string(), arity()}]}].
+-type type_info()   :: [{module(), [{atom(), arity()}]}].
 
 -export([types/1,
          add_types/2,
@@ -23,11 +23,12 @@ get_type({_,_,A}, typer_error) ->
 get_type({M,F,A}, TypeInfo) ->
     % TODO Get rid of the nested case blocks
     case lists:keyfind(M, 1, TypeInfo) of
-        {_, ModuleTypes} -> case lists:keyfind(F, 1, lists:filter(fun({_, Args}) -> length(Args) =:= A end, ModuleTypes)) of
-                                false -> lists:duplicate(A, "any()"); % If the type is not found, use any()
-                                {_, T} -> T
-                            end;
-        false            -> lists:duplicate(A, "any()") % If the type is not found, use any()
+        {_, ModuleTypes} ->
+            case lists:keyfind(F, 1, lists:filter(fun({_, Args}) -> length(Args) =:= A end, ModuleTypes)) of
+                false  -> lists:duplicate(A, "any()"); % If the type is not found, use any()
+                {_, T} -> T
+            end;
+        false -> lists:duplicate(A, "any()") % If the type is not found, use any()
     end.
 
 % Returns a closure that contains the type information needed
@@ -43,7 +44,7 @@ add_types(OrigTypeInfo, RefacTypeInfo) ->
 
 
 % Parses the output of typer into a list of tuples in the form of {Filename, [Spec lines]}
--spec parse_typer(string()) -> [{module(), [{string(), arity()}]}] | atom().
+-spec parse_typer(string()) -> [type_info()] | atom().
 parse_typer(TyperOutput) ->
     case re:run(TyperOutput, ".*failed.*\n") of
         {match, _} -> typer_error; % TODO Why does this match `nomatch`???
