@@ -3,7 +3,7 @@
 -type type() :: string().
 
 -export([run_tests/5,
-        run_tests/6,
+         run_tests/6,
          eval_proc/3,
          eval_func/4]).
 
@@ -19,8 +19,7 @@ run_tests([], _, _, _, _, Results) ->
 run_tests(Functions, OrigNode, RefacNode, Types, CallGraph, Results) ->
     % proper:quickchek/2 stops the server, so it has to be started every time
     proper_typeserver:start(),
-    % ProperOpts = [long_result, {on_output, fun(X,Y) -> utils:count_tests(X,Y) end}],
-    ProperOpts = [long_result, quiet],
+    ProperOpts = [long_result, {on_output, fun(X,Y) -> utils:count_tests(X,Y) end}],
 
     % Convert type information to PropEr type
     FunctionsTyped = lists:map(fun({FileName, {M,F,A}, ArgTypes}) -> {FileName, {M, F, A}, convert_type(M,ArgTypes)} end, Functions),

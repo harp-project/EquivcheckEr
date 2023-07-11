@@ -2,7 +2,7 @@
 
 main(Args) ->
     net_kernel:start(master, #{name_domain => shortnames}),
-    ets:new(stat, [named_table, protected, set, {keypos, 1}]),
+    ets:new(stat, [named_table, public, set, {keypos, 1}]),
     ets:insert(stat, {counts, []}),
     case Args of
         ["db"]     ->
