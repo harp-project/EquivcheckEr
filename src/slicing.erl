@@ -1,4 +1,4 @@
-%% This module finds the functions that will be tested with random data
+%% This module finds the initial set of functions that will be tested with random data
 -module(slicing).
 
 -export([scope/4]).
@@ -17,8 +17,8 @@ scope(OrigModFuns, RefacModFuns, CallGraph, Types) ->
     RefacFunsTyped = lists:map(fun({FileName, MFA}) -> {FileName, MFA, Types(MFA, refactored)} end, RefacModFuns),
 
     {SameSig, DiffSig} = lists:partition(fun(Fun) -> lists:member(Fun, RefacFunsTyped) end, OrigFunsTyped),
-    Callers = lists:flatmap(fun({FileName, {_, F, A}, _}) -> CallGraph({FileName, F, A}, original) end, DiffSig),
 
+    Callers = lists:flatmap(fun({FileName, {_, F, A}, _}) -> CallGraph({FileName, F, A}, original) end, DiffSig),
     CallersTyped = lists:map(fun({FileName, MFA}) -> {FileName, MFA, Types(MFA, original)} end, Callers),
 
     lists:uniq(CallersTyped ++ SameSig).
