@@ -58,10 +58,10 @@ leftmost_node(Tree) ->
 % syntactic elements
 -spec offset(line_num(), tokens()) -> line_num().
 offset(LineNum, Tokens) ->
-    Rest = lists:dropwhile(fun(T) -> element(2, T) =/= LineNum end, Tokens),
+    Rest = lists:dropwhile(fun(T) -> erl_scan:line(T) =/= LineNum end, Tokens),
     % We use dot as the last token from the function
-    {value, EndToken} = lists:search(fun(T) -> element(1, T) =:= dot end, Rest),
-    element(2, EndToken).
+    {value, EndToken} = lists:search(fun(T) -> erl_scan:symbol(T) =:= dot end, Rest),
+    erl_scan:line(EndToken).
 
 % Finds all the modified functions
 -spec modified_functions(diffs(), [{filename(), file_info(), file_info()}]) ->
