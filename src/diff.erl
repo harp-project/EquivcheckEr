@@ -3,14 +3,13 @@
 %% all the information about a change that is needed for finding out what has to be testsd
 -module(diff).
 
+-include("equivchecker.hrl").
+
 -export([diff/1,
          modified_files/1]).
 
--type filename()    :: string().
 -type diff_line()   :: string().
 -type hunk()        :: {filename(), [diff_line()]}.
--type line_num()    :: integer().
--type diffs()       :: [{filename(), {[line_num()], [line_num()]}}].
 -type length()      :: integer().
 
 -spec diff(string()) -> diffs().

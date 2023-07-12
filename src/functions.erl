@@ -1,16 +1,12 @@
 -module(functions).
 
+-include("equivchecker.hrl").
+
 -export([modified_functions/2,
         callgraph/2]).
 
 -type fun_name()    :: string().
--type line_num()    :: integer().
 -type boundaries()  :: {line_num(), line_num()}.
--type ast()         :: erl_syntax:forms().
--type tokens()      :: erl_scan:tokens().
--type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
--type filename()    :: string().
--type diffs()       :: [{filename(), {[line_num()], [line_num()]}}].
 
 % Finds all the functions in the AST, and pairs them up with their first and last line in the source
 -spec functions(tokens(), ast()) -> [{fun_name(), arity(), boundaries()}].

@@ -1,10 +1,11 @@
 %% This module finds the initial set of functions that will be tested with random data
 -module(slicing).
 
+-include("equivchecker.hrl").
+
 -export([scope/4]).
 
 -type types()     :: [string()].
--type filename()  :: string().
 -type fun_info()  :: {filename(), mfa()}.
 -type fun_typed() :: {filename(), mfa(), types()}.
 

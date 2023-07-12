@@ -1,15 +1,13 @@
 -module(check_equiv).
 
+-include("equivchecker.hrl").
+
 -compile(export_all). % Exports all functions
 -compile(debug_info).
 
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
 
--type filename()    :: string().
 -type commit()      :: string().
--type ast()         :: erl_syntax:forms().
--type tokens()      :: erl_scan:tokens().
--type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
 
 -define(ORIGINAL_CODE_FOLDER, "orig").
 -define(REFACTORED_CODE_FOLDER, "refac").
