@@ -1,23 +1,16 @@
 -module(check_equiv).
 
+-include("equivchecker.hrl").
+
 -compile(export_all). % Exports all functions
 -compile(debug_info).
 
--include_lib("proper/include/proper.hrl").
-
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
+
+-type commit()      :: string().
+
 -define(ORIGINAL_CODE_FOLDER, "orig").
 -define(REFACTORED_CODE_FOLDER, "refac").
--define(PEER_TIMEOUT, 1000).
-
--spec copy_project(string()) -> string().
-copy_project(ProjFolder) ->
-    file:make_dir(?TEMP_FOLDER),
-    os:cmd("git clone " ++ ProjFolder ++ " " ++ ?TEMP_FOLDER).
-
--spec checkout(string()) -> string().
-checkout(Hash) ->
-    os:cmd("git checkout " ++ Hash).
 
 cleanup() ->
     % TODO Handle error
@@ -26,7 +19,7 @@ cleanup() ->
 compile(Modules, DirName) ->
     % TODO Handle error
     file:make_dir(DirName),
-    lists:map(fun(X) -> compile:file(X, [{outdir, DirName}, {warn_format, 0}]) end, Modules).
+    lists:map(fun(X) -> compile:file(X, [export_all, {outdir, DirName}, {warn_format, 0}]) end, Modules).
 
 start_nodes() ->
     % TODO Handle error, use other port if its already used
@@ -38,68 +31,69 @@ stop_nodes(Orig, Refac) ->
     peer:stop(Orig),
     peer:stop(Refac).
 
--spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
-eval_func(Node, M, F, A) ->
-    try peer:call(Node, M, F, A, ?PEER_TIMEOUT) of
-        Val -> {normal, Val}
-    catch
-        error:Error -> Error
-    end.
+% Gets the list of names for changed files based on the diff, and gives back
+% the token list and AST for each
+-spec read_sources([filename()], commit()) -> [{filename(), file_info()}].
+read_sources(ChangedFiles, CommitHash) ->
+    repo:checkout(CommitHash),
+    Sources = lists:map(fun utils:read/1, ChangedFiles),
+    Tokens = lists:map(fun(Source) -> {_, Tokens, _} = erl_scan:string(Source), Tokens end, Sources),
+    ASTs = lists:map(fun(FileName) -> {ok, Forms} = epp_dodger:quick_parse_file(FileName), Forms end, ChangedFiles),
 
-% Spawns a process on each node that evaluates the function and
-% sends back the result to this process
--spec prop_same_output(pid(), pid(), atom(), atom(), [term()]) -> boolean().
-prop_same_output(OrigNode, RefacNode, M, F, A) ->
-    
-    Out1 = eval_func(OrigNode, M, F, A),
-    Out2 = eval_func(RefacNode, M, F, A),
+    lists:zip(Tokens, ASTs).
 
-    Out1 =:= Out2.
+get_typeinfo(OrigHash, RefacHash) ->
+    repo:checkout(OrigHash),
+    TyperOut = os:cmd("typer -I include -r ."),
+    OrigTypes = typing:types(TyperOut),
 
-test_function(M, F, Type, OrigNode, RefacNode, Options) ->
-    proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options).
+    repo:checkout(RefacHash),
+    TyperOut2 = os:cmd("typer -I include -r ."),
+    RefacTypes = typing:types(TyperOut2),
+
+    {OrigTypes, RefacTypes}.
 
 check_equiv(OrigHash, RefacHash) ->
     Configs = config:load_config(),
-    typing:ensure_plt(Configs),
+    % typing:ensure_plt(Configs),
     application:start(wrangler), % TODO
-    proper_typeserver:start(),
     {_, ProjFolder} = file:get_cwd(),
 
-    copy_project(ProjFolder),
+    repo:copy(ProjFolder, ?TEMP_FOLDER),
     file:set_cwd(?TEMP_FOLDER),
-    checkout(RefacHash), % Scoping needs the repo to be at the commit containing the refactored code
+    repo:checkout(RefacHash), % Scoping needs the repo to be at the commit containing the refactored code
 
-    Diff_Output = os:cmd("git diff --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash),
+    DiffOutput = repo:diff_output(OrigHash, RefacHash),
+    Diffs = diff:diff(DiffOutput),
+    Files = diff:modified_files(Diffs),
+    % TODO Compile everything for now
+    % Files = string:split(string:trim(os:cmd("find -name '*.erl'")), "\n", all),
 
-    % Gets back the files that have to be compiled, and the functions that have to be tested
-    {Files, Funs} = scoping:scope(Diff_Output),
+    FileInfos = lists:zip3(Files, read_sources(Files, OrigHash), read_sources(Files, RefacHash)),
+    {OrigTypeInfo, RefacTypeInfo} = get_typeinfo(OrigHash, RefacHash),
+    {OrigModFuns, RefacModFuns} = functions:modified_functions(Diffs, FileInfos),
+
+    CallGraph = functions:callgraph(OrigHash, RefacHash),
+    Types = typing:add_types(OrigTypeInfo, RefacTypeInfo),
+
+    % Gets back the functions that have to be tested
+    FunsToTest = slicing:scope(OrigModFuns, RefacModFuns, CallGraph, Types),
 
     % Checkout and compile the necessary modules into two separate folders
     % This is needed because QuickCheck has to evaluate to old and the new
     % function repeatedly side-by-side
-    checkout(OrigHash),
+    repo:checkout(OrigHash),
+    % TODO Files should contain all the used modules, not just the ones affected by the change
     compile(Files, ?ORIGINAL_CODE_FOLDER),
 
-    checkout(RefacHash),
+    repo:checkout(RefacHash),
     compile(Files, ?REFACTORED_CODE_FOLDER),
 
     {OrigNode, RefacNode} = start_nodes(),
 
-    Options = [quiet, long_result],
-
-    % A result is a tuple: {Module, Function, Counterexample}
-    % If no counterexample is found, the third value is 'true' instead
-    Res = lists:map(fun({M, F, Type}) ->
-                            {M, F, test_function(M, F, Type, OrigNode, RefacNode, Options)}
-                    end, Funs),
-
-    % Drop the passed results, we need the counterexamples
-    FailedFuns = lists:filter(fun({_, _, Eq}) -> Eq =/= true end, Res),
-
+    Result = test:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
     application:stop(wrangler), % TODO
-    proper_typeserver:stop(),
-    {Res, FailedFuns}.
+    Result.

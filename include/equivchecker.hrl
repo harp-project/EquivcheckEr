@@ -1,0 +1,6 @@
+-type ast()         :: erl_syntax:forms().
+-type diffs()       :: [{filename(), {[line_num()], [line_num()]}}].
+-type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
+-type filename()    :: string().
+-type line_num()    :: integer().
+-type tokens()      :: erl_scan:tokens().
