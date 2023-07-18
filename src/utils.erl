@@ -60,6 +60,9 @@ filename_to_module(FileName) ->
 module_to_filename(Module) ->
     erlang:atom_to_list(Module) ++ ".erl".
 
+% This is a dummy process for suppressing any io message sent to it
+% It works by just simply ignoring the message, and sending back an 'ok' reply
+% accoring to the I/O protocol (https://www.erlang.org/doc/apps/stdlib/io_protocol.html)
 dummy_group_leader() ->
     receive
         {io_request, From, ReplyAs, _} ->
@@ -68,6 +71,9 @@ dummy_group_leader() ->
     end.
 
 
+% Disables the output by using the dummy group leader
+% Gives back the old group leader, so output could be reenable later
+% by the enable_output/1 function
 -spec disable_output() -> pid().
 disable_output() ->
     Old = group_leader(),
