@@ -72,7 +72,7 @@ dummy_group_leader() ->
 
 
 % Disables the output by using the dummy group leader
-% Gives back the old group leader, so output could be reenable later
+% Gives back the old group leader, so output could be reenabled later
 % by the enable_output/1 function
 -spec disable_output() -> pid().
 disable_output() ->
