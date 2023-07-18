@@ -64,8 +64,7 @@ dummy_group_leader() ->
     receive
         {io_request, From, ReplyAs, _} ->
             From ! {io_reply, ReplyAs, ok},
-            dummy_group_leader();
-        exit -> ok
+            dummy_group_leader()
     end.
 
 
