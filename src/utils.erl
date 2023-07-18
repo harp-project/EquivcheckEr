@@ -59,3 +59,23 @@ filename_to_module(FileName) ->
 -spec module_to_filename(atom()) -> string().
 module_to_filename(Module) ->
     erlang:atom_to_list(Module) ++ ".erl".
+
+dummy_group_leader() ->
+    receive
+        {io_request, From, ReplyAs, _} ->
+            From ! {io_reply, ReplyAs, ok},
+            dummy_group_leader();
+        exit -> ok
+    end.
+
+
+-spec disable_output() -> pid().
+disable_output() ->
+    Old = group_leader(),
+    New = spawn(utils, dummy_group_leader, []),
+    group_leader(New, self()),
+    Old.
+
+-spec enable_output(pid()) -> none().
+enable_output(Leader) ->
+    group_leader(Leader, self()).

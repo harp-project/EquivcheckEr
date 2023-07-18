@@ -115,6 +115,7 @@ find_callers({FileName, FunName, Arity}, CommitHash) ->
     % so this should ideally be done in some smarter way
     repo:checkout(CommitHash),
     {_, Folder} = file:get_cwd(),
-    % TODO Stop wrangler from printing to stdout
+    Leader = utils:disable_output(),
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunName, Arity, [Folder], 4),
+    utils:enable_output(Leader),
     lists:map(fun({{FileName, F, A}, _}) -> {FileName, {utils:filename_to_module(FileName), F, A}} end, Funs).
