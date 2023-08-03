@@ -1,20 +1,15 @@
 -module(functions).
 
+-include("equivchecker.hrl").
+
 -export([modified_functions/2,
         callgraph/2]).
 
 -type fun_name()    :: string().
--type fun_arity()   :: integer().
--type line_num()    :: integer().
 -type boundaries()  :: {line_num(), line_num()}.
--type ast()         :: erl_syntax:forms().
--type tokens()      :: erl_scan:tokens().
--type file_info()   :: {tokens(), ast()}. % TODO: This is a terrible name
--type filename()    :: string().
--type diffs()       :: [{filename(), {[line_num()], [line_num()]}}].
 
 % Finds all the functions in the AST, and pairs them up with their first and last line in the source
--spec functions(tokens(), ast()) -> [{fun_name(), fun_arity(), boundaries()}].
+-spec functions(tokens(), ast()) -> [{fun_name(), arity(), boundaries()}].
 functions(Tokens, AST) ->
     Functions = lists:filter(fun(Tree) -> erl_syntax:type(Tree) =:= function end, AST),
     StartLines = lists:map(fun(Tree) -> erl_syntax:get_pos(leftmost_node(Tree)) end, Functions),
@@ -59,10 +54,10 @@ leftmost_node(Tree) ->
 % syntactic elements
 -spec offset(line_num(), tokens()) -> line_num().
 offset(LineNum, Tokens) ->
-    Rest = lists:dropwhile(fun(T) -> element(2, T) =/= LineNum end, Tokens),
+    Rest = lists:dropwhile(fun(T) -> erl_scan:line(T) =/= LineNum end, Tokens),
     % We use dot as the last token from the function
-    {value, EndToken} = lists:search(fun(T) -> element(1, T) =:= dot end, Rest),
-    element(2, EndToken).
+    {value, EndToken} = lists:search(fun(T) -> erl_scan:symbol(T) =:= dot end, Rest),
+    erl_scan:line(EndToken).
 
 % Finds all the modified functions
 -spec modified_functions(diffs(), [{filename(), file_info(), file_info()}]) ->
@@ -90,22 +85,22 @@ modified({FileName, {OrigLineNums, RefacLineNums},
     {OrigChanged, RefacChanged}.
 
 % Predicate for deciding if given line is inside the given function boundaries
-% -spec inside(boundaries(), line_num()) -> boolean().
+-spec inside(boundaries(), line_num()) -> boolean().
 inside({Start, End}, Line) ->
     Line >= Start andalso Line =< End.
 
 
 % Filters out those functions that were affected by the change
-% -spec changed(line_nums(), {fun_name(), fun_arity(), boundaries()}) -> {fun_name(), fun_arity(), boundaries()}.
+-spec changed([line_num()], {fun_name(), arity(), boundaries()}) -> {fun_name(), arity(), boundaries()}.
 changed(LineNums, Funs) ->
     lists:filter(fun({_, _, Boundaries}) ->
-                         case lists:search(fun(Line) -> inside(Boundaries, Line) end, LineNums) of
-                             false -> false;
-                             _     -> true
-                         end
+                         % If any modified line falls inside the function's boundaries, we consider it modified
+                         lists:any(fun(Line) -> inside(Boundaries, Line) end, LineNums)
                  end,
                  Funs).
 
+% Returns a closure for getting the callers, based on the version
+-spec callgraph(string(), string()) -> fun().
 callgraph(OrigHash, RefacHash) ->
     fun(MFA, Version) ->
             case Version of
@@ -114,8 +109,10 @@ callgraph(OrigHash, RefacHash) ->
             end
     end.
 
-% -spec find_callers(mfa(), atom()) -> [mfa()].
+-spec find_callers({filename(), atom(), arity()}, string()) -> [{filename(), mfa()}].
 find_callers({FileName, FunName, Arity}, CommitHash) ->
+    % TODO This checkout could be a major performance bottleneck for larger repos,
+    % so this should ideally be done in some smarter way
     repo:checkout(CommitHash),
     {_, Folder} = file:get_cwd(),
     % TODO Stop wrangler from printing to stdout
