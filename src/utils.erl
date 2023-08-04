@@ -1,7 +1,9 @@
 -module(utils).
 
-show_result(Failed) ->
-    io:format("Results: ~p~n", [Failed]).
+show_result(Failed, false) ->
+    io:format("Results: ~p~n", [Failed]);
+show_result(Failed, true) ->
+    io:format("~s\n", [jsone:encode(Failed,[{indent, 2}, {space, 1}])]).
 
 count_tests("Failed: After ~b test(s).~n", Args) ->
     [{_, Counts}] = ets:lookup(stat, counts),
