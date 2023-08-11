@@ -7,7 +7,7 @@
 
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
 
--type commit()      :: string().
+-type commit() :: string().
 
 -define(ORIGINAL_CODE_FOLDER, "orig").
 -define(REFACTORED_CODE_FOLDER, "refac").
@@ -91,7 +91,7 @@ check_equiv(OrigHash, RefacHash) ->
 
     {OrigNode, RefacNode} = start_nodes(),
 
-    Result = test:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
+    Result = testing:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
     file:set_cwd(".."),
     cleanup(),
     stop_nodes(OrigNode, RefacNode),
