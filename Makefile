@@ -3,19 +3,19 @@ TARGET_DIR=ebin
 COMPILE_OPTIONS=+debug_info +export_all
 TEST_COMPILE_OPTIONS=+debug_info +export_all
 
-all: compile
+REBAR3=/usr/bin/env rebar3
+
+default: compile
+
+all: compile test
 
 compile:
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/check_equiv.erl
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/utils.erl
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/typing.erl
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/slicing.erl
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/functions.erl
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/config.erl
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/diff.erl
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/testing.erl
-	erlc ${COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/repo.erl
-	# erl -sname master -eval 'check_equiv:main(), init:stop()' -noshell
+	$(RM) ebin
+	$(REBAR3) escriptize
+	ln -s _build/default/bin/ ebin
+
+clean:
+	$(REBAR3) clean
 
 test: FORCE
 	erlc ${TEST_COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/check_equiv.erl
