@@ -101,21 +101,19 @@ changed(LineNums, Funs) ->
 
 % Returns a closure for getting the callers, based on the version
 -spec callgraph(string(), string()) -> fun().
-callgraph(OrigHash, RefacHash) ->
+callgraph(OrigDir, RefacDir) ->
     fun(MFA, Version) ->
             case Version of
-                original -> find_callers(MFA, OrigHash);
-                refactored -> find_callers(MFA, RefacHash)
+                original -> find_callers(MFA, OrigDir);
+                refactored -> find_callers(MFA, RefacDir)
             end
     end.
 
 -spec find_callers({filename(), atom(), arity()}, string()) -> [{filename(), mfa()}].
-find_callers({FileName, FunName, Arity}, CommitHash) ->
-    % TODO This checkout could be a major performance bottleneck for larger repos,
-    % so this should ideally be done in some smarter way
-    repo:checkout(CommitHash),
-    {_, Folder} = file:get_cwd(),
+find_callers({FileName, FunName, Arity}, Dir) ->
+    AbsDir = filename:absname(Dir),
+    AbsFileName = AbsDir ++ "/" ++ filename:basename(FileName),
     Leader = utils:disable_output(),
-    {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(FileName, FunName, Arity, [Folder], 4),
+    {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(AbsFileName, FunName, Arity, [AbsDir], 4),
     utils:enable_output(Leader),
     lists:map(fun({{FileName, F, A}, _}) -> {FileName, {utils:filename_to_module(FileName), F, A}} end, Funs).

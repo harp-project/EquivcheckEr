@@ -86,3 +86,9 @@ disable_output() ->
 -spec enable_output(pid()) -> none().
 enable_output(Leader) ->
     group_leader(Leader, self()).
+
+common_postfix(Str1, Str2) ->
+    common_postfix(lists:reverse(Str1), lists:reverse(Str2), []).
+
+common_postfix([H1|T1], [H2|T2], Acc) when H1 =:= H2 -> common_postfix(T1,T2, [H1|Acc]);
+common_postfix(_, _, Acc) -> Acc.
