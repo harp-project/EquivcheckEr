@@ -40,10 +40,10 @@ read_sources(FileName) ->
     {Tokens, AST}.
 
 get_typeinfo(OrigDir, RefacDir) ->
-    TyperOut = os:cmd("typer -I include -r . " ++ OrigDir),
+    TyperOut = os:cmd("typer -I include -r " ++ OrigDir),
     OrigTypes = typing:types(TyperOut),
 
-    TyperOut2 = os:cmd("typer -I include -r . " ++ RefacDir),
+    TyperOut2 = os:cmd("typer -I include -r " ++ RefacDir),
     RefacTypes = typing:types(TyperOut2),
 
     {OrigTypes, RefacTypes}.
