@@ -62,20 +62,20 @@ modified_files(Diffs) ->
 % Gets the diff output, and splits it into hunks
 -spec parse_diff(string()) -> [hunk()].
 parse_diff(DiffStr) ->
-    [_|Files] = string:split(DiffStr, "diff --git ", all),
+    [_|Files] = string:split(DiffStr, "diff -x .git -u0 -br ", all),
     Hunks = lists:map(fun(Str) -> string:split(Str, "\n", all) end, Files),
     ErlangHunks = lists:filter(fun([Header|_]) -> is_erl_source(Header) end, Hunks),
-    HunksByFiles = lists:map(fun([H,_,_,_|T]) -> {extract_file(H), lists:droplast(T)} end, ErlangHunks),
+    HunksByFiles = lists:map(fun([H,_,_|T]) -> {extract_file(H), lists:droplast(T)} end, ErlangHunks),
     lists:map(fun({FileName, Lines}) ->
                       {FileName,
                        lists:filter(fun(Line) -> lists:prefix("@@", Line) end, Lines)} end, HunksByFiles).
 
-% Extracts the filename from the diff output
+% Extracts the filenames from the diff output
 -spec extract_file(string()) -> filename().
 extract_file(DiffLine) ->
-    Options = [global, {capture, [1], list}],
-    {match, [[FileName]]} = re:run(DiffLine,".*a/(.*?\.erl).*", Options),
-    FileName.
+    Options = [global, {capture, [1,2], list}],
+    {match, [[OrigFile, RefacFile]]} = re:run(DiffLine, ".*?(/.*?\.erl).*?(/.*?\.erl)", Options),
+    tl(utils:common_postfix(OrigFile, RefacFile)).
 
 % Checks if the given file in the diff output is erlang source code
 -spec is_erl_source([diff_line()]) -> boolean().
