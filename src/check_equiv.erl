@@ -39,14 +39,9 @@ read_sources(FileName) ->
 
     {Tokens, AST}.
 
-get_typeinfo(OrigDir, RefacDir) ->
-    TyperOut = os:cmd("typer -I include -r " ++ OrigDir),
-    OrigTypes = typing:types(TyperOut),
-
-    TyperOut2 = os:cmd("typer -I include -r " ++ RefacDir),
-    RefacTypes = typing:types(TyperOut2),
-
-    {OrigTypes, RefacTypes}.
+get_typeinfo(Dir) ->
+    TyperOut = os:cmd("typer -I include -r " ++ Dir),
+    typing:types(TyperOut).
 
 check_equiv(OrigDir, RefacDir) ->
     Configs = config:load_config(),
@@ -65,7 +60,7 @@ check_equiv(OrigDir, RefacDir) ->
                                    read_sources(OrigDir ++ "/" ++ FileName),
                                    read_sources(RefacDir ++ "/" ++ FileName)} end,
                           ModFiles),
-    {OrigTypeInfo, RefacTypeInfo} = get_typeinfo(OrigDir, RefacDir),
+    {OrigTypeInfo, RefacTypeInfo} = {get_typeinfo(OrigDir), get_typeinfo(RefacDir)},
     {OrigModFuns, RefacModFuns} = functions:modified_functions(Diffs, FileInfos),
 
     CallGraph = functions:callgraph(OrigDir, RefacDir),
