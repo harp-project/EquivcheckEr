@@ -5,15 +5,6 @@
 -compile(export_all). % Exports all functions
 -compile(debug_info).
 
--define(TEMP_FOLDER, "tmp"). % TODO use /tmp
-
--define(ORIGINAL_CODE_FOLDER, ?TEMP_FOLDER ++ "/orig").
--define(REFACTORED_CODE_FOLDER, ?TEMP_FOLDER ++ "/refac").
-
-cleanup() ->
-    % TODO Handle error
-    file:del_dir_r(?TEMP_FOLDER).
-
 compile(Modules, DirName) ->
     % TODO Handle error
     file:make_dir(DirName),
@@ -46,8 +37,6 @@ get_typeinfo(Dir) ->
 check_equiv(OrigDir, RefacDir) ->
     Configs = config:load_config(),
     % typing:ensure_plt(Configs),
-    application:start(wrangler), % TODO
-    {_, ProjFolder} = file:get_cwd(),
 
     DiffOutput = os:cmd("diff -x '.git' -u0 -br " ++ OrigDir ++ " " ++ RefacDir),
     Diffs = diff:diff(DiffOutput),
@@ -77,7 +66,6 @@ check_equiv(OrigDir, RefacDir) ->
     OrigFiles = lists:map(fun(File) -> filename:join([OrigDir, File]) end, ModFiles),
     RefacFiles = lists:map(fun(File) -> filename:join([RefacDir, File]) end, ModFiles),
 
-    file:make_dir(?TEMP_FOLDER),
     compile(OrigFiles, ?ORIGINAL_CODE_FOLDER),
     compile(RefacFiles, ?REFACTORED_CODE_FOLDER),
 
@@ -88,8 +76,5 @@ check_equiv(OrigDir, RefacDir) ->
 
     Result = testing:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
 
-    file:set_cwd(".."),
-    cleanup(),
     stop_nodes(OrigNode, RefacNode),
-    application:stop(wrangler), % TODO
     Result.
