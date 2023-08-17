@@ -1,7 +1,7 @@
 -module(repo).
 
 -export([copy/2,
-         diff_output/2,
+         get_diff/2,
          checkout/1]).
 
 -spec copy(string(), string()) -> string().
@@ -13,5 +13,5 @@ copy(ProjFolder, TmpFolder) ->
 checkout(Hash) ->
     os:cmd("git checkout " ++ Hash).
 
-diff_output(OrigHash, RefacHash) ->
+get_diff(OrigHash, RefacHash) ->
     os:cmd("git diff -U0 --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash).
