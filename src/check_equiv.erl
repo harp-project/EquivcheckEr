@@ -86,7 +86,7 @@ check_equiv(OrigDir, RefacDir) ->
     % This is needed because PropEr needs the source for constructing the generator
     file:set_cwd(OrigDir),
 
-    Result = test:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
+    Result = testing:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
 
     file:set_cwd(".."),
     cleanup(),

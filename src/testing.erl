@@ -22,7 +22,7 @@ run_tests(Functions, OrigNode, RefacNode, Types, CallGraph, Results) ->
     ProperOpts = [long_result, {on_output, fun(X,Y) -> utils:count_tests(X,Y) end}],
 
     % Convert type information to PropEr type
-    FunctionsTyped = lists:map(fun({FileName, {M,F,A}, ArgTypes}) -> {FileName, {M, F, A}, convert_type(M,ArgTypes)} end, Functions),
+    FunctionsTyped = lists:map(fun({FileName, {M,F,A}, ArgTypes}) -> {FileName, {M, F, A}, convert_type(M, ArgTypes)} end, Functions),
 
     % A result is a tuple: {Module, Function, Counterexample}
     % If no counterexample is found, the third value is 'true' instead
