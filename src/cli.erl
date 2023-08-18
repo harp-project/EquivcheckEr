@@ -9,9 +9,9 @@ handler(#{target := Target, source := Source, json := Json, commit := Commit, st
     io:format("Checking commit ~p against commit ~p~n", [Target, Source]),
     {ok, ProjFolder} = file:get_cwd(),
     OrigRepo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
-    repo:checkout(OrigRepo, Source),
+    repo:checkout(OrigRepo, Target),
     RefacRepo = repo:copy(ProjFolder, ?REFACTORED_SOURCE_FOLDER),
-    repo:checkout(RefacRepo, Target),
+    repo:checkout(RefacRepo, Source),
     Res = check_equiv:check_equiv(filename:absname(OrigRepo), filename:absname(RefacRepo)),
     utils:show_result(Res, Json),
     if Stats -> utils:statistics(); true -> ok end;
