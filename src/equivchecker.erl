@@ -17,7 +17,8 @@ cli() ->
                     #{name => target, required => false},
                     #{name => source, required => false},
                     #{name => json, type => boolean, short => $j, long => "-json", default => false},
-                    #{name => commit, type => boolean, short => $c, long => "-commit", default => false}
+                    #{name => commit, type => boolean, short => $c, long => "-commit", default => false},
+                    #{name => stats, type => boolean, short => $s, long => "-statistics", default => false}
                    ],
       handler => fun cli:run/1
      }.

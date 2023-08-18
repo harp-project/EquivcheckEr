@@ -12,8 +12,9 @@ count_tests(_, _) ->
     ok.
 
 statistics() ->
+    % Would be nice to show the total number of tested functions
     [{_, FailCounts}] = ets:lookup(stat, counts),
-    % io:format("~p~n", [FailCounts]),
+    io:format("Number of functions that failed: ~p~n", [length(FailCounts)]),
     Average = lists:sum(FailCounts) / length(FailCounts),
     io:format("Average no. tries before counterexample is found: ~p~n", [Average]).
 

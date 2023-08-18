@@ -4,7 +4,8 @@
 
 -export([run/1]).
 
-handler(#{target := Target, source := Source, json := Json, commit := Commit}) when Commit ->
+% TODO Refactor this monstrosity into something manageable
+handler(#{target := Target, source := Source, json := Json, commit := Commit, stats := Stats}) when Commit ->
     io:format("Checking commit ~p against commit ~p~n", [Target, Source]),
     {ok, ProjFolder} = file:get_cwd(),
     OrigRepo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
@@ -12,31 +13,36 @@ handler(#{target := Target, source := Source, json := Json, commit := Commit}) w
     RefacRepo = repo:copy(ProjFolder, ?REFACTORED_SOURCE_FOLDER),
     repo:checkout(RefacRepo, Target),
     Res = check_equiv:check_equiv(filename:absname(OrigRepo), filename:absname(RefacRepo)),
-    utils:show_result(Res, Json);
-handler(#{target := Target, source := Source, json := Json, commit := Commit}) when not Commit ->
+    utils:show_result(Res, Json),
+    if Stats -> utils:statistics(); true -> ok end;
+handler(#{target := Target, source := Source, json := Json, commit := Commit, stats := Stats}) when not Commit ->
     io:format("Checking folder ~p against folder ~p~n", [Target, Source]),
     Res = check_equiv:check_equiv(filename:absname(Target), filename:absname(Source)),
-    utils:show_result(Res, Json);
-handler(#{target := Target, json := Json, commit := Commit}) when Commit ->
+    utils:show_result(Res, Json),
+    if Stats -> utils:statistics(); true -> ok end;
+handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) when Commit ->
     io:format("Checking current folder against commit ~p~n", [Target]),
     {ok, ProjFolder} = file:get_cwd(),
     Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
     repo:checkout(Repo, Target),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
-    utils:show_result(Res, Json);
-handler(#{target := Target, json := Json, commit := Commit}) when not Commit ->
+    utils:show_result(Res, Json),
+    if Stats -> utils:statistics(); true -> ok end;
+handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) when not Commit ->
     io:format("Checking current folder against ~p~n", [Target]),
     {ok, ProjFolder} = file:get_cwd(),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Target)),
-    utils:show_result(Res, Json);
-handler(#{json := Json, commit := _}) ->
+    utils:show_result(Res, Json),
+    if Stats -> utils:statistics(); true -> ok end;
+handler(#{json := Json, commit := _, stats := Stats}) ->
     io:format("Checking current folder against current commit~n"),
     {ok, ProjFolder} = file:get_cwd(),
     Commit = repo:current_commit(),
     Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
     repo:checkout(Repo, Commit),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
-    utils:show_result(Res, Json).
+    utils:show_result(Res, Json),
+    if Stats -> utils:statistics(); true -> ok end.
 
 setup() ->
     % Sets the name of the master node
@@ -62,21 +68,3 @@ run(Args) ->
     setup(),
     handler(Args),
     cleanup().
-
-
-
-% fun (#{help := Help, mode := Mode, json := Json}) ->
-%         case Mode of
-%             "db" ->
-%                 debugger:quick(check_equiv, check_equiv, ["master^", "master"]);
-%             "stats" ->
-%                 {Res, Failed} = check_equiv:check_equiv("master^", "master"),
-%                 utils:statistics(),
-%                 NumOfFail = length(Failed),
-%                 NumOfSuccess = length(Res),
-%                 io:format("~p failed out of ~p~n", [NumOfFail, NumOfSuccess]);
-%             "none" ->
-%                 Res = check_equiv:check_equiv("master^", "master"),
-%                 utils:show_result(Res, Json)
-%         end,
-% end
