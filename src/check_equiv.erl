@@ -12,8 +12,8 @@ compile(Modules, DirName) ->
 
 start_nodes() ->
     % TODO Handle error, use other port if its already used
-    {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", ?ORIGINAL_CODE_FOLDER]}),
-    {_, Refac, _} = peer:start(#{name => refac, connection => 33002, args => ["-pa", ?REFACTORED_CODE_FOLDER]}),
+    {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", ?ORIGINAL_BIN_FOLDER]}),
+    {_, Refac, _} = peer:start(#{name => refac, connection => 33002, args => ["-pa", ?REFACTORED_BIN_FOLDER]}),
     {Orig, Refac}.
 
 stop_nodes(Orig, Refac) ->
@@ -66,8 +66,8 @@ check_equiv(OrigDir, RefacDir) ->
     OrigFiles = lists:map(fun(File) -> filename:join([OrigDir, File]) end, ModFiles),
     RefacFiles = lists:map(fun(File) -> filename:join([RefacDir, File]) end, ModFiles),
 
-    compile(OrigFiles, ?ORIGINAL_CODE_FOLDER),
-    compile(RefacFiles, ?REFACTORED_CODE_FOLDER),
+    compile(OrigFiles, ?ORIGINAL_BIN_FOLDER),
+    compile(RefacFiles, ?REFACTORED_BIN_FOLDER),
 
     {OrigNode, RefacNode} = start_nodes(),
 

@@ -12,7 +12,7 @@ handler(#{target := Target, json := Json, commit := Commit}) ->
 handler(#{json := Json, commit := _}) ->
     {ok, ProjFolder} = file:get_cwd(),
     Commit = repo:current_commit(),
-    Repo = repo:copy(ProjFolder, ?TEMP_FOLDER ++ "/orig_source"),
+    Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
     repo:checkout(Repo, Commit),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
     utils:show_result(Res, Json).
@@ -27,8 +27,8 @@ setup() ->
 
     % Creating temporary folders for the source and bytecode
     file:make_dir(?TEMP_FOLDER),
-    file:make_dir(?ORIGINAL_CODE_FOLDER),
-    file:make_dir(?REFACTORED_CODE_FOLDER),
+    file:make_dir(?ORIGINAL_BIN_FOLDER),
+    file:make_dir(?REFACTORED_BIN_FOLDER),
 
     application:start(wrangler).
 
