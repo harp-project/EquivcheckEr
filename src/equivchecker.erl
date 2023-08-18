@@ -1,5 +1,13 @@
-#!/usr/bin/escript
+-module(equivchecker).
 
+%% API exports
+-export([main/1]).
+
+%%====================================================================
+%% API functions
+%%====================================================================
+
+%% escript Entry point
 main(Args) ->
     argparse:run(Args, cli(), #{progname => "Equivalence checker"}).
 
@@ -32,3 +40,7 @@ cli() ->
               ets:delete(stat)
       end
      }.
+
+%%====================================================================
+%% Internal functions
+%%====================================================================
