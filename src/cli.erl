@@ -4,12 +4,33 @@
 
 -export([run/1]).
 
-handler(#{target := Target, source := Source, json := Json, commit := Commit}) ->
+handler(#{target := Target, source := Source, json := Json, commit := Commit}) when Commit ->
+    io:format("Checking commit ~p against commit ~p~n", [Target, Source]),
+    {ok, ProjFolder} = file:get_cwd(),
+    OrigRepo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
+    repo:checkout(OrigRepo, Source),
+    RefacRepo = repo:copy(ProjFolder, ?REFACTORED_SOURCE_FOLDER),
+    repo:checkout(RefacRepo, Target),
+    Res = check_equiv:check_equiv(filename:absname(OrigRepo), filename:absname(RefacRepo)),
+    utils:show_result(Res, Json);
+handler(#{target := Target, source := Source, json := Json, commit := Commit}) when not Commit ->
+    io:format("Checking folder ~p against folder ~p~n", [Target, Source]),
     Res = check_equiv:check_equiv(filename:absname(Target), filename:absname(Source)),
     utils:show_result(Res, Json);
-handler(#{target := Target, json := Json, commit := Commit}) ->
-    io:format("~p~n", [Target]);
+handler(#{target := Target, json := Json, commit := Commit}) when Commit ->
+    io:format("Checking current folder against commit ~p~n", [Target]),
+    {ok, ProjFolder} = file:get_cwd(),
+    Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
+    repo:checkout(Repo, Target),
+    Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
+    utils:show_result(Res, Json);
+handler(#{target := Target, json := Json, commit := Commit}) when not Commit ->
+    io:format("Checking current folder against ~p~n", [Target]),
+    {ok, ProjFolder} = file:get_cwd(),
+    Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Target)),
+    utils:show_result(Res, Json);
 handler(#{json := Json, commit := _}) ->
+    io:format("Checking current folder against current commit~n"),
     {ok, ProjFolder} = file:get_cwd(),
     Commit = repo:current_commit(),
     Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
