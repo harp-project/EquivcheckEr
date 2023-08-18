@@ -29,5 +29,6 @@ test: FORCE
 	erlc ${TEST_COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/diff.erl
 	erlc ${TEST_COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/testing.erl
 	erlc ${TEST_COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/repo.erl
+	erlc ${TEST_COMPILE_OPTIONS} -I include -o ${TARGET_DIR} src/cli.erl
 	erl -eval 'scoping_tests:test(), typing_tests:test(), init:stop()' -noshell
 FORCE:
