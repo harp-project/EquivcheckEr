@@ -1,7 +1,7 @@
-# Wrangler Refactoring Equivalence Checker (PoC)
+# EquivcheckEr
 
 - Uses property based testing to check the equivalence of code refactored by Wrangler
-- Compares commits of the same codebase with the original and refactored code (git)
+- Compares folders or commits of the same codebase with the original and refactored code (git)
 
 ## Dependencies
 
@@ -10,3 +10,37 @@
 - Jsone
 - Git: The git cli client has to be installed
 - Dialyzer, Typer (usually packaged together with Erlang)
+
+## Usage
+
+To run the check, you can specify which folders or commits you want to compare like this
+
+`$ equivchecker <original_source> <refactored_source>`
+
+`$ equivchecker -c <original_commit> <refactored_commit>`
+
+The `-c (or --commit)` flag tells equivchecker to use commits instead of folders.
+
+You can also specify a single commit or folder, in which case the content of the current directory will be compared to it:
+
+`$ equivchecker <original_folder>`
+
+`$ equivchecker -c <original_commit>`
+
+You can even omit both arguments:
+
+`$ equivchecker`
+
+In this case, the current directory will be compared to the currently checked out commit (HEAD).
+
+### JSON
+
+It's possible to get the output formatted as JSON:
+
+`$ equivchecker --json`
+
+### Statistics
+
+Statistical information about the tests can be generated with `-s` or `--statistics`:
+
+`$ equivchecker --statistics`
