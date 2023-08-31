@@ -75,6 +75,7 @@ check_equiv(OrigDir, RefacDir) ->
     file:set_cwd(OrigDir),
 
     Result = testing:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
+    Formatted = utils:format_results(Result),
 
     stop_nodes(OrigNode, RefacNode),
-    Result.
+    Formatted.
