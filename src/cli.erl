@@ -93,10 +93,12 @@ format_results(Results, Json) ->
         false -> lists:map(fun format_stdout/1, Results)
     end.
 
--spec format_stdout({filename(), mfa(), [any()]}) -> none().
+% Default formatting
+-spec format_stdout({filename(), mfa(), [any()]}) -> {filename(), mfa(), any()}.
 format_stdout({FileName, MFA, [CounterExample]}) ->
     {FileName, MFA, CounterExample}.
 
--spec format_json({filename(), mfa(), [any()]}) -> none().
+% Format the output to json
+-spec format_json({filename(), mfa(), [any()]}) -> map().
 format_json({FileName, MFA, [CounterExample]}) ->
     #{filename => erlang:list_to_atom(FileName), mfa => MFA, counterexample => CounterExample}.
