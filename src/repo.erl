@@ -13,9 +13,10 @@ copy(ProjFolder, TmpFolder) ->
 
 -spec checkout(string(), string()) -> string().
 checkout(Dir, Hash) ->
-    os:cmd("pushd " ++ Dir),
+    {ok, CurrDir} = file:get_cwd(),
+    file:set_cwd(Dir),
     os:cmd("git checkout " ++ Hash),
-    os:cmd("popd").
+    file:set_cwd(CurrDir).
 
 get_diff(OrigHash, RefacHash) ->
     os:cmd("git diff -U0 --no-ext-diff " ++ OrigHash ++ " " ++ RefacHash).
