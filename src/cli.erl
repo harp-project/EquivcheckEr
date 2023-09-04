@@ -5,6 +5,7 @@
 -export([run/1]).
 
 % TODO Refactor this monstrosity into something manageable
+-spec handler(map()) -> none().
 handler(#{target := Target, source := Source, json := Json, commit := Commit, stats := Stats}) when Commit ->
     if not Json -> io:format("Checking commit ~p against commit ~p~n", [Target, Source]); true -> ok end,
     {ok, ProjFolder} = file:get_cwd(),
@@ -59,12 +60,14 @@ cleanup() ->
     file:del_dir_r(?TEMP_FOLDER), % TODO Handle error
     application:stop(wrangler).
 
+-spec run(map()) -> none().
 run(Args) ->
     setup(),
     handler(Args),
     cleanup().
 
 % Second arg turns on json output, third shows statistics
+-spec show_result([{filename(), mfa(), [any()]}], boolean(), boolean()) -> none().
 show_result(Result, false, false) ->
     Formatted = format_results(Result,false),
     io:format("Results: ~p~n", [Formatted]);
@@ -83,14 +86,17 @@ show_result(Result, true, true) ->
     Output = #{statistics => Stats, results => format_results(Result,true)},
     io:format("~s\n", [jsone:encode(Output,[{indent, 2}, {space, 1}])]).
 
+-spec format_results([{filename(), mfa(), [any()]}], boolean()) -> none().
 format_results(Results, Json) ->
     case Json of
         true  -> lists:map(fun format_json/1, Results);
         false -> lists:map(fun format_stdout/1, Results)
     end.
 
+-spec format_stdout({filename(), mfa(), [any()]}) -> none().
 format_stdout({FileName, MFA, [CounterExample]}) ->
     {FileName, MFA, CounterExample}.
 
+-spec format_json({filename(), mfa(), [any()]}) -> none().
 format_json({FileName, MFA, [CounterExample]}) ->
     #{filename => erlang:list_to_atom(FileName), mfa => MFA, counterexample => CounterExample}.
