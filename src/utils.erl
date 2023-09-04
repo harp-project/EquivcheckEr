@@ -2,41 +2,17 @@
 
 -compile(export_all).
 
-% Second arg turns off Json output, third shows statistics
-show_result(Result, true, true) ->
-    {FailCounts, Average} = statistics(),
-    Stats = #{failed_count => length(FailCounts), average_test_count => Average},
-    Output = #{statistics => Stats, results => Result},
-    io:format("~s\n", [jsone:encode(Output,[{indent, 2}, {space, 1}])]);
-show_result(Result, true, false) ->
-    io:format("~s\n", [jsone:encode(Result,[{indent, 2}, {space, 1}])]);
-show_result(Result, false, true) ->
-    {FailCounts, Average} = statistics(),
-    io:format("Results: ~p~n", [Result]),
-    io:format("Number of functions that failed: ~p~n", [length(FailCounts)]),
-    io:format("Average no. tries before counterexample is found: ~p~n", [Average]);
-show_result(Result, false, false) ->
-    io:format("~s\n", [jsone:encode(Result,[{indent, 2}, {space, 1}])]),
-    io:format("Results: ~p~n", [Result]).
-
-count_tests("Failed: After ~b test(s).~n", Args) ->
-    [{_, Counts}] = ets:lookup(stat, counts),
-    ets:insert(stat, {counts, Counts ++ Args});
-count_tests(_, _) ->
-    ok.
-
 statistics() ->
     % Would be nice to show the total number of tested functions
     [{_, FailCounts}] = ets:lookup(stat, counts),
     Average = lists:sum(FailCounts) / length(FailCounts),
     {FailCounts, Average}.
 
-format_results(Results) ->
-    lists:map(fun format_result/1, Results).
-
-format_result({FileName, MFA, [CounterExample]}) ->
-    %% TODO Get the relative path fro mthe FileName
-    {FileName, MFA, CounterExample}.
+count_tests("Failed: After ~b test(s).~n", Args) ->
+    [{_, Counts}] = ets:lookup(stat, counts),
+    ets:insert(stat, {counts, Counts ++ Args});
+count_tests(_, _) ->
+    ok.
 
 read(FileName) ->
     {ok, F} = file:read_file(FileName),
