@@ -13,23 +13,23 @@ handler(#{target := Target, source := Source, json := Json, commit := Commit, st
     RefacRepo = repo:copy(ProjFolder, ?REFACTORED_SOURCE_FOLDER),
     repo:checkout(RefacRepo, Source),
     Res = check_equiv:check_equiv(filename:absname(OrigRepo), filename:absname(RefacRepo)),
-    utils:show_result(Res, Json, Stats);
+    show_result(Res, Json, Stats);
 handler(#{target := Target, source := Source, json := Json, commit := Commit, stats := Stats}) when not Commit ->
     if not Json -> io:format("Checking folder ~p against folder ~p~n", [Target, Source]); true -> ok end,
     Res = check_equiv:check_equiv(filename:absname(Target), filename:absname(Source)),
-    utils:show_result(Res, Json, Stats);
+    show_result(Res, Json, Stats);
 handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) when Commit ->
     if not Json -> io:format("Checking current folder against commit ~p~n", [Target]); true -> ok end,
     {ok, ProjFolder} = file:get_cwd(),
     Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
     repo:checkout(Repo, Target),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
-    utils:show_result(Res, Json, Stats);
+    show_result(Res, Json, Stats);
 handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) when not Commit ->
     if not Json -> io:format("Checking current folder against ~p~n", [Target]); true -> ok end,
     {ok, ProjFolder} = file:get_cwd(),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Target)),
-    utils:show_result(Res, Json, Stats);
+    show_result(Res, Json, Stats);
 handler(#{json := Json, commit := _, stats := Stats}) ->
     if not Json -> io:format("Checking current folder against current commit~n"); true -> ok end,
     {ok, ProjFolder} = file:get_cwd(),
@@ -37,7 +37,7 @@ handler(#{json := Json, commit := _, stats := Stats}) ->
     Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
     repo:checkout(Repo, Commit),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
-    utils:show_result(Res, Json, Stats).
+    show_result(Res, Json, Stats).
 
 setup() ->
     % Sets the name of the master node
@@ -56,10 +56,41 @@ setup() ->
 
 cleanup() ->
     ets:delete(stat),
-    % file:del_dir_r(?TEMP_FOLDER), % TODO Handle error
+    file:del_dir_r(?TEMP_FOLDER), % TODO Handle error
     application:stop(wrangler).
 
 run(Args) ->
     setup(),
     handler(Args),
     cleanup().
+
+% Second arg turns on json output, third shows statistics
+show_result(Result, false, false) ->
+    Formatted = format_results(Result,false),
+    io:format("Results: ~p~n", [Formatted]);
+show_result(Result, false, true) ->
+    {FailCounts, Average} = utils:statistics(),
+    Formatted = format_results(Result,false),
+    io:format("Results: ~p~n", [Formatted]),
+    io:format("Number of functions that failed: ~p~n", [length(FailCounts)]),
+    io:format("Average no. tries before counterexample is found: ~p~n", [Average]);
+show_result(Result, true, false) ->
+    Formatted = format_results(Result,true),
+    io:format("~s\n", [jsone:encode(Formatted,[{indent, 2}, {space, 1}])]);
+show_result(Result, true, true) ->
+    {FailCounts, Average} = utils:statistics(),
+    Stats = #{failed_count => length(FailCounts), average_test_count => Average},
+    Output = #{statistics => Stats, results => format_results(Result,true)},
+    io:format("~s\n", [jsone:encode(Output,[{indent, 2}, {space, 1}])]).
+
+format_results(Results, Json) ->
+    case Json of
+        true  -> lists:map(fun format_json/1, Results);
+        false -> lists:map(fun format_stdout/1, Results)
+    end.
+
+format_stdout({FileName, MFA, [CounterExample]}) ->
+    {FileName, MFA, CounterExample}.
+
+format_json({FileName, MFA, [CounterExample]}) ->
+    #{filename => erlang:list_to_atom(FileName), mfa => MFA, counterexample => CounterExample}.
