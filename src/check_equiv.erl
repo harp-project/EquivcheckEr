@@ -72,9 +72,11 @@ check_equiv(OrigDir, RefacDir) ->
     {OrigNode, RefacNode} = start_nodes(),
 
     % This is needed because PropEr needs the source for constructing the generator
+    {ok, Dir} = file:get_cwd(),
     file:set_cwd(OrigDir),
 
     Result = testing:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
 
+    file:set_cwd(Dir),
     stop_nodes(OrigNode, RefacNode),
     Result.
