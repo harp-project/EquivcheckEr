@@ -7,7 +7,7 @@
 % TODO Refactor this monstrosity into something manageable
 -spec handler(map()) -> none().
 handler(#{target := Target, source := Source, json := Json, commit := Commit, stats := Stats}) when Commit ->
-    if not Json -> io:format("Checking commit ~p against commit ~p~n", [Target, Source]); true -> ok end,
+    not Json andalso io:format("Checking commit ~p against commit ~p~n", [Target, Source]),
     {ok, ProjFolder} = file:get_cwd(),
     OrigRepo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
     repo:checkout(OrigRepo, Target),
@@ -16,23 +16,23 @@ handler(#{target := Target, source := Source, json := Json, commit := Commit, st
     Res = check_equiv:check_equiv(filename:absname(OrigRepo), filename:absname(RefacRepo)),
     show_result(Res, Json, Stats);
 handler(#{target := Target, source := Source, json := Json, commit := Commit, stats := Stats}) when not Commit ->
-    if not Json -> io:format("Checking folder ~p against folder ~p~n", [Target, Source]); true -> ok end,
+    not Json andalso io:format("Checking folder ~p against folder ~p~n", [Target, Source]),
     Res = check_equiv:check_equiv(filename:absname(Target), filename:absname(Source)),
     show_result(Res, Json, Stats);
 handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) when Commit ->
-    if not Json -> io:format("Checking current folder against commit ~p~n", [Target]); true -> ok end,
+    not Json andalso io:format("Checking current folder against commit ~p~n", [Target]),
     {ok, ProjFolder} = file:get_cwd(),
     Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
     repo:checkout(Repo, Target),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
     show_result(Res, Json, Stats);
 handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) when not Commit ->
-    if not Json -> io:format("Checking current folder against ~p~n", [Target]); true -> ok end,
+    not Json andalso io:format("Checking current folder against ~p~n", [Target]),
     {ok, ProjFolder} = file:get_cwd(),
     Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Target)),
     show_result(Res, Json, Stats);
 handler(#{json := Json, commit := _, stats := Stats}) ->
-    if not Json -> io:format("Checking current folder against current commit~n"); true -> ok end,
+    not Json andalso io:format("Checking current folder against current commit~n"),
     {ok, ProjFolder} = file:get_cwd(),
     Commit = repo:current_commit(),
     Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
