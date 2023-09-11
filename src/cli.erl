@@ -4,40 +4,53 @@
 
 -export([run/1]).
 
-% TODO Refactor this monstrosity into something manageable
 -spec handler(map()) -> none().
 handler(#{target := Target, source := Source, json := Json, commit := Commit, stats := Stats}) when Commit ->
-    not Json andalso io:format("Checking commit ~p against commit ~p~n", [Target, Source]),
-    {ok, ProjFolder} = file:get_cwd(),
-    OrigRepo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
-    repo:checkout(OrigRepo, Target),
-    RefacRepo = repo:copy(ProjFolder, ?REFACTORED_SOURCE_FOLDER),
-    repo:checkout(RefacRepo, Source),
-    Res = check_equiv:check_equiv(filename:absname(OrigRepo), filename:absname(RefacRepo)),
-    show_result(Res, Json, Stats);
+    commit_to_commit(Source, Target, Json, Stats);
 handler(#{target := Target, source := Source, json := Json, commit := Commit, stats := Stats}) when not Commit ->
-    not Json andalso io:format("Checking folder ~p against folder ~p~n", [Target, Source]),
-    Res = check_equiv:check_equiv(filename:absname(Target), filename:absname(Source)),
-    show_result(Res, Json, Stats);
+    folder_to_folder(Source, Target, Json, Stats);
 handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) when Commit ->
-    not Json andalso io:format("Checking current folder against commit ~p~n", [Target]),
-    {ok, ProjFolder} = file:get_cwd(),
-    Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
-    repo:checkout(Repo, Target),
-    Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
-    show_result(Res, Json, Stats);
+    folder_to_commit(Target,Json,Stats);
 handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) when not Commit ->
-    not Json andalso io:format("Checking current folder against ~p~n", [Target]),
-    {ok, ProjFolder} = file:get_cwd(),
-    Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Target)),
-    show_result(Res, Json, Stats);
+    folder_to_folder(Target, Json, Stats);
 handler(#{json := Json, commit := _, stats := Stats}) ->
-    not Json andalso io:format("Checking current folder against current commit~n"),
+    folder_to_commit(Json,Stats).
+
+commit_to_commit(RefacCommit, OrigCommit, Json, Stats) ->
+    not Json andalso io:format("Checking commit ~p against commit ~p~n", [OrigCommit, RefacCommit]),
     {ok, ProjFolder} = file:get_cwd(),
+    Original = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
+    repo:checkout(Original, OrigCommit),
+    Refactored = repo:copy(ProjFolder, ?REFACTORED_SOURCE_FOLDER),
+    repo:checkout(Refactored, RefacCommit),
+    run_check(Original, Refactored, Json, Stats).
+
+folder_to_folder(Refactored, Original, Json, Stats) ->
+    not Json andalso io:format("Checking folder ~p against folder ~p~n", [Original, Refactored]),
+    run_check(Original, Refactored, Json, Stats).
+
+folder_to_folder(Original, Json, Stats) ->
+    not Json andalso io:format("Checking current folder against ~p~n", [Original]),
+    {ok, Refactored} = file:get_cwd(),
+    run_check(Original, Refactored, Json, Stats).
+
+folder_to_commit(Commit, Json, Stats) ->
+    not Json andalso io:format("Checking current folder against commit ~p~n", [Commit]),
+    {ok, Refactored} = file:get_cwd(),
+    Original = repo:copy(Refactored, ?ORIGINAL_SOURCE_FOLDER),
+    repo:checkout(Original, Commit),
+    run_check(Original, Refactored, Json, Stats).
+
+folder_to_commit(Json, Stats) ->
+    not Json andalso io:format("Checking current folder against current commit~n"),
+    {ok, Refactored} = file:get_cwd(),
     Commit = repo:current_commit(),
-    Repo = repo:copy(ProjFolder, ?ORIGINAL_SOURCE_FOLDER),
-    repo:checkout(Repo, Commit),
-    Res = check_equiv:check_equiv(filename:absname(ProjFolder), filename:absname(Repo)),
+    Original = repo:copy(Refactored, ?ORIGINAL_SOURCE_FOLDER),
+    repo:checkout(Original, Commit),
+    run_check(Original, Refactored, Json, Stats).
+
+run_check(Original, Refactored, Json, Stats) ->
+    Res = check_equiv:check_equiv(filename:absname(Original), filename:absname(Refactored)),
     show_result(Res, Json, Stats).
 
 setup() ->
