@@ -1,10 +1,12 @@
+-import(filename,[join/1]).
+
 -define(TEMP_FOLDER, "tmp"). % TODO use /tmp
 
--define(ORIGINAL_BIN_FOLDER, ?TEMP_FOLDER ++ "/orig").
--define(REFACTORED_BIN_FOLDER, ?TEMP_FOLDER ++ "/refac").
+-define(ORIGINAL_BIN_FOLDER, join([?TEMP_FOLDER, "orig"])).
+-define(REFACTORED_BIN_FOLDER, join([?TEMP_FOLDER, "refac"])).
 
--define(ORIGINAL_SOURCE_FOLDER, ?TEMP_FOLDER ++ "/orig_source").
--define(REFACTORED_SOURCE_FOLDER, ?TEMP_FOLDER ++ "/refac_source").
+-define(ORIGINAL_SOURCE_FOLDER, join([?TEMP_FOLDER, "orig_source"])).
+-define(REFACTORED_SOURCE_FOLDER, join([?TEMP_FOLDER, "refac_source"])).
 
 -type ast()         :: erl_syntax:forms().
 -type diffs()       :: [{filename(), {[line_num()], [line_num()]}}].
