@@ -16,6 +16,7 @@ handler(#{target := Target, json := Json, commit := Commit, stats := Stats}) whe
 handler(#{json := Json, commit := _, stats := Stats}) ->
     folder_to_commit(Json,Stats).
 
+-spec commit_to_commit(commit(), commit(), boolean(), boolean()) -> none().
 commit_to_commit(RefacCommit, OrigCommit, Json, Stats) ->
     not Json andalso io:format("Checking commit ~p against commit ~p~n", [OrigCommit, RefacCommit]),
     {ok, ProjFolder} = file:get_cwd(),
@@ -25,15 +26,18 @@ commit_to_commit(RefacCommit, OrigCommit, Json, Stats) ->
     repo:checkout(Refactored, RefacCommit),
     run_check(Original, Refactored, Json, Stats).
 
+-spec folder_to_folder(filename(), filename(), boolean(), boolean()) -> none().
 folder_to_folder(Refactored, Original, Json, Stats) ->
     not Json andalso io:format("Checking folder ~p against folder ~p~n", [Original, Refactored]),
     run_check(Original, Refactored, Json, Stats).
 
+-spec folder_to_folder(filename(), boolean(), boolean()) -> none().
 folder_to_folder(Original, Json, Stats) ->
     not Json andalso io:format("Checking current folder against ~p~n", [Original]),
     {ok, Refactored} = file:get_cwd(),
     run_check(Original, Refactored, Json, Stats).
 
+-spec folder_to_commit(commit(), boolean(), boolean()) -> none().
 folder_to_commit(Commit, Json, Stats) ->
     not Json andalso io:format("Checking current folder against commit ~p~n", [Commit]),
     {ok, Refactored} = file:get_cwd(),
@@ -41,6 +45,7 @@ folder_to_commit(Commit, Json, Stats) ->
     repo:checkout(Original, Commit),
     run_check(Original, Refactored, Json, Stats).
 
+-spec folder_to_commit(boolean(), boolean()) -> none().
 folder_to_commit(Json, Stats) ->
     not Json andalso io:format("Checking current folder against current commit~n"),
     {ok, Refactored} = file:get_cwd(),
@@ -49,6 +54,7 @@ folder_to_commit(Json, Stats) ->
     repo:checkout(Original, Commit),
     run_check(Original, Refactored, Json, Stats).
 
+-spec run_check(filename(), filename(), boolean(), boolean()) -> none().
 run_check(Original, Refactored, Json, Stats) ->
     Res = check_equiv:check_equiv(filename:absname(Original), filename:absname(Refactored)),
     show_result(Res, Json, Stats).

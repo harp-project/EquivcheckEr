@@ -14,3 +14,4 @@
 -type filename()    :: string().
 -type line_num()    :: integer().
 -type tokens()      :: erl_scan:tokens().
+-type commit()      :: string().
