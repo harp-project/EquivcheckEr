@@ -7,7 +7,7 @@
          eval_proc/3,
          eval_func/4]).
 
--define(PEER_TIMEOUT, 1000).
+-define(PEER_TIMEOUT, 100).
 
 -include_lib("proper/include/proper.hrl").
 
@@ -58,6 +58,10 @@ eval_proc(M, F, A) ->
     Pid = spawn(testing, eval_func, [M, F, A, self()]),
     receive
         {Pid, Val} -> Val
+    after
+        ?PEER_TIMEOUT ->
+            exit(Pid, timeout),
+            error
     end.
 
 % Spawns a process on each node that evaluates the function and
