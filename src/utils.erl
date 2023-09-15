@@ -85,6 +85,11 @@ disable_output() ->
 enable_output(Leader) ->
     group_leader(Leader, self()).
 
+% Sends the output to a file with the name of the current node
+capture_output() ->
+    {ok, File} = file:open(atom_to_list(node()), [append]),
+    group_leader(File, self()).
+
 -spec common_filename_postfix(filename(), filename()) -> filename().
 common_filename_postfix(F1, F2) ->
     filename:join(common_postfix(filename:split(F1),

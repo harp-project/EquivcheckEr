@@ -7,7 +7,7 @@
          eval_proc/3,
          eval_func/4]).
 
--define(PEER_TIMEOUT, 100).
+-define(PEER_TIMEOUT, 1000).
 
 -include_lib("proper/include/proper.hrl").
 
@@ -48,6 +48,7 @@ collect_results(Num, Res) ->
 
 % -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
 eval_func(M, F, A, Pid) ->
+    utils:capture_output(),
     Pid ! {self(), try erlang:apply(M, F, A) of
               Val -> {normal, Val}
           catch
