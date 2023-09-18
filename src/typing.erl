@@ -53,7 +53,7 @@ parse_typer(TyperOutput) ->
 
             Options = [global, {capture, [1,2], list}, dotall],
             Re = lists:map(fun(FileSpecs) ->
-                                   re:run(FileSpecs, ".*File: \"./(.*?)\"\n.*---\n(.*)", Options)
+                                   re:run(FileSpecs, ".*File: \"(.*?)\"\n.*---\n(.*)", Options)
                            end, Files),
 
             Matches = lists:filter(fun(X) -> X =/= nomatch end, Re),

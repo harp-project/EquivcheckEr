@@ -1,21 +1,18 @@
 -module(utils).
 
-show_result(Failed, false) ->
-    io:format("Results: ~p~n", [Failed]);
-show_result(Failed, true) ->
-    io:format("~s\n", [jsone:encode(Failed,[{indent, 2}, {space, 1}])]).
+-compile(export_all).
+
+statistics() ->
+    % Would be nice to show the total number of tested functions
+    [{_, FailCounts}] = ets:lookup(stat, counts),
+    Average = lists:sum(FailCounts) / length(FailCounts),
+    {FailCounts, Average}.
 
 count_tests("Failed: After ~b test(s).~n", Args) ->
     [{_, Counts}] = ets:lookup(stat, counts),
     ets:insert(stat, {counts, Counts ++ Args});
 count_tests(_, _) ->
     ok.
-
-statistics() ->
-    [{_, FailCounts}] = ets:lookup(stat, counts),
-    % io:format("~p~n", [FailCounts]),
-    Average = lists:sum(FailCounts) / length(FailCounts),
-    io:format("Average no. tries before counterexample is found: ~p~n", [Average]).
 
 read(FileName) ->
     {ok, F} = file:read_file(FileName),
@@ -72,7 +69,6 @@ dummy_group_leader() ->
             dummy_group_leader()
     end.
 
-
 % Disables the output by using the dummy group leader
 % Gives back the old group leader, so output could be reenabled later
 % by the enable_output/1 function
@@ -86,3 +82,9 @@ disable_output() ->
 -spec enable_output(pid()) -> none().
 enable_output(Leader) ->
     group_leader(Leader, self()).
+
+common_postfix(Str1, Str2) ->
+    common_postfix(lists:reverse(Str1), lists:reverse(Str2), []).
+
+common_postfix([H1|T1], [H2|T2], Acc) when H1 =:= H2 -> common_postfix(T1,T2, [H1|Acc]);
+common_postfix(_, _, Acc) -> Acc.

@@ -14,31 +14,13 @@ main(Args) ->
 cli() ->
     #{
       arguments => [
-                    #{name => mode, type => string, default => "none"},
-                    #{name => json, type => boolean, short => $j, long => "-json", default => false}
+                    #{name => target, required => false},
+                    #{name => source, required => false},
+                    #{name => json, type => boolean, short => $j, long => "-json", default => false},
+                    #{name => commit, type => boolean, short => $c, long => "-commit", default => false},
+                    #{name => stats, type => boolean, short => $s, long => "-statistics", default => false}
                    ],
-      handler =>
-      fun (#{mode := Mode, json := Json}) ->
-              net_kernel:start(master, #{name_domain => shortnames}),
-              % TODO I had to set this table to public, so the other nodes can access it,
-              % which in theory could be exploited, although it's pretty unlikely
-              ets:new(stat, [named_table, public, set, {keypos, 1}]),
-              ets:insert(stat, {counts, []}),
-              case Mode of
-                  "db" ->
-                      debugger:quick(check_equiv, check_equiv, ["master^", "master"]);
-                  "stats" ->
-                      {Res, Failed} = check_equiv:check_equiv("master^", "master"),
-                      utils:statistics(),
-                      NumOfFail = length(Failed),
-                      NumOfSuccess = length(Res),
-                      io:format("~p failed out of ~p~n", [NumOfFail, NumOfSuccess]);
-                  "none" ->
-                      Res = check_equiv:check_equiv("master^", "master"),
-                      utils:show_result(Res, Json)
-              end,
-              ets:delete(stat)
-      end
+      handler => fun cli:run/1
      }.
 
 %%====================================================================
