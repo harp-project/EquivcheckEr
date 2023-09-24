@@ -83,8 +83,14 @@ disable_output() ->
 enable_output(Leader) ->
     group_leader(Leader, self()).
 
-common_postfix(Str1, Str2) ->
-    common_postfix(lists:reverse(Str1), lists:reverse(Str2), []).
+common_file_postfix(F1, F2) ->
+    common_file_postfix(lists:reverse(filename:split(F1)), lists:reverse(filename:split(F2)), []).
 
-common_postfix([H1|T1], [H2|T2], Acc) when H1 =:= H2 -> common_postfix(T1,T2, [H1|Acc]);
-common_postfix(_, _, Acc) -> Acc.
+common_file_postfix([H1|T1], [H2|T2], Acc) when H1 =:= H2 -> common_file_postfix(T1,T2, [H1|Acc]);
+common_file_postfix(_, _, Acc) -> filename:join(Acc).
+
+% Removes Dir from the filename File
+remove_base_dir(Dir, File) ->
+    DirLen = length(filename:split(Dir)),
+    FileList = filename:split(File),
+    filename:join(lists:sublist(FileList, DirLen + 1, length(FileList))).
