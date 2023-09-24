@@ -116,4 +116,5 @@ find_callers({FileName, FunName, Arity}, Dir) ->
     Leader = utils:disable_output(),
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(AbsFileName, FunName, Arity, [AbsDir], 4),
     utils:enable_output(Leader),
-    lists:map(fun({{FileName, F, A}, _}) -> {FileName, {utils:filename_to_module(FileName), F, A}} end, Funs).
+    lists:map(fun({{FileName, F, A}, _}) ->
+                      {utils:remove_base_dir(Dir, FileName), {utils:filename_to_module(FileName), F, A}} end, Funs).
