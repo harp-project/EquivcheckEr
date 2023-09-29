@@ -94,9 +94,7 @@ capture_group_leader(OutFile) ->
             group_leader() ! Req,
             group_leader(self(), self()),
             capture_group_leader(OutFile);
-        {io_request, From, ReplyAs, I} when element(1,I) =:= get_until;
-                                            element(1,I) =:= get_line;
-                                            element(1,I) =:= get_chars ->
+        {io_request, From, ReplyAs, _} ->
             From ! {io_reply, ReplyAs, {error, 'input'}},
             capture_group_leader(OutFile)
     end.
