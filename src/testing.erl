@@ -48,21 +48,18 @@ collect_results(Num, Res) ->
 
 % -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
 eval_func(M, F, A, Pid) ->
-    utils:capture_output(),
+    {L, OutFile} = utils:start_capture(),
     Pid ! {self(), try erlang:apply(M, F, A) of
               Val -> {normal, Val}
           catch
               error:Error -> error
-          end}.
+          end},
+    utils:stop_capture(L, OutFile).
 
 eval_proc(M, F, A) ->
     Pid = spawn(testing, eval_func, [M, F, A, self()]),
     receive
         {Pid, Val} -> Val
-    after
-        ?PEER_TIMEOUT ->
-            exit(Pid, timeout),
-            error
     end.
 
 % Spawns a process on each node that evaluates the function and

@@ -85,10 +85,36 @@ disable_output() ->
 enable_output(Leader) ->
     group_leader(Leader, self()).
 
-% Sends the output to a file with the name of the current node
-capture_output() ->
-    {ok, File} = file:open(atom_to_list(node()), [append]),
-    group_leader(File, self()).
+% Custom group leader for sending all output to OutFile
+% and ignoring any input
+capture_group_leader(OutFile) ->
+    receive
+        {io_request, _, _, O} = Req when element(1,O) =:= 'put_chars' ->
+            group_leader(OutFile, self()),
+            group_leader() ! Req,
+            group_leader(self(), self()),
+            capture_group_leader(OutFile);
+        {io_request, From, ReplyAs, I} when element(1,I) =:= get_until;
+                                            element(1,I) =:= get_line;
+                                            element(1,I) =:= get_chars ->
+            From ! {io_reply, ReplyAs, {error, 'input'}},
+            capture_group_leader(OutFile)
+    end.
+
+% Sends the output to a file with the name of the current node,
+% also errors out on any input
+-spec start_capture() -> {pid(), file:io_device()}.
+start_capture() ->
+    Old = group_leader(),
+    {ok, OutFile} = file:open(atom_to_list(node()), [append]),
+    New = spawn(utils, capture_group_leader, [OutFile]),
+    group_leader(New, self()),
+    {Old, OutFile}.
+
+-spec stop_capture(pid(), file:io_device()) -> none().
+stop_capture(Leader, OutFile) ->
+    file:close(OutFile),
+    group_leader(Leader, self()).
 
 -spec common_filename_postfix(filename(), filename()) -> filename().
 common_filename_postfix(F1, F2) ->
