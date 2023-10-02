@@ -8,7 +8,14 @@
 compile(Modules, DirName) ->
     % TODO Handle error
     file:make_dir(DirName),
-    lists:map(fun(X) -> compile:file(X, [export_all, {outdir, DirName}, {warn_format, 0}]) end, Modules).
+    lists:map(fun(X) -> compile:file(X,
+                                     [export_all,
+                                      debug_info,
+                                      {outdir, DirName},
+                                      {parse_transform, pt},
+                                      {warn_format, 0}
+                                     ])
+              end, Modules).
 
 start_nodes() ->
     % TODO Handle error, use other port if its already used
