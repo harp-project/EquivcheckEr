@@ -81,10 +81,12 @@ convert_type(FileName, M, ArgTypes) ->
         true -> lists:map(fun(ArgType) -> get_type({M, ArgType}) end, ArgTypes);
         false -> Dir = filename:dirname(FileName),
                  {ok, CurrDir} = file:get_cwd(),
-                 file:set_cwd(Dir),
-                 Typed = lists:map(fun(ArgType) -> get_type({M, ArgType}) end, ArgTypes),
-                 file:set_cwd(CurrDir),
-                 Typed
+                 try
+                    file:set_cwd(Dir),
+                    lists:map(fun(ArgType) -> get_type({M, ArgType}) end, ArgTypes)
+                 after
+                     file:set_cwd(CurrDir)
+                 end
     end.
 
 % Convert type string to PropEr type
