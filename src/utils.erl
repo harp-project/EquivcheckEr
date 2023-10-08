@@ -87,14 +87,16 @@ enable_output(Leader) ->
 
 -spec common_filename_postfix(filename(), filename()) -> filename().
 common_filename_postfix(F1, F2) ->
-    common_filename_postfix(lists:reverse(filename:split(F1)),
-                            lists:reverse(filename:split(F2)),
-                            []).
+    filename:join(common_postfix(filename:split(F1),
+                                 filename:split(F2))).
 
--spec common_filename_postfix(string(), string(), string()) -> filename().
-common_filename_postfix([H1|T1], [H2|T2], Acc) when H1 =:= H2 ->
-    common_filename_postfix(T1,T2, [H1|Acc]);
-common_filename_postfix(_, _, Acc) -> filename:join(Acc).
+-spec common_postfix(list(), list()) -> list().
+common_postfix(L1, L2) -> common_postfix(lists:reverse(L1), lists:reverse(L2), []).
+
+-spec common_postfix(list(), list(), list()) -> list().
+common_postfix([H1|T1], [H2|T2], Acc) when H1 =:= H2 ->
+    common_postfix(T1,T2, [H1|Acc]);
+common_postfix(_, _, Acc) -> Acc.
 
 % Removes Dir from the filename File
 -spec remove_base_dir(filename(), filename()) -> filename().
