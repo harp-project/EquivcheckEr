@@ -22,7 +22,7 @@ run_tests(Functions, OrigNode, RefacNode, Types, CallGraph, Results) ->
     ProperOpts = [long_result, {on_output, fun(X,Y) -> utils:count_tests(X,Y) end}],
 
     % Convert type information to PropEr type
-    FunctionsTyped = lists:map(fun({FileName, {M,F,A}, ArgTypes}) -> {FileName, {M, F, A}, convert_type(M, ArgTypes)} end, Functions),
+    FunctionsTyped = lists:map(fun({FileName, {M,F,A}, ArgTypes}) -> {FileName, {M, F, A}, convert_type(FileName, M, ArgTypes)} end, Functions),
 
     % A result is a tuple: {Module, Function, Counterexample}
     % If no counterexample is found, the third value is 'true' instead
@@ -75,8 +75,19 @@ test_function({FileName, {M,F,A}, Type}, OrigNode, RefacNode, Options, Pid) ->
 % Gets a single function and finds the PropEr types for its arguments
 % -spec convert_type({mfa(), [type()]}) -> 
   % {atom(), atom(), [proper_types:rich_result(proper_types:fin_type())]}.
-convert_type(M, ArgTypes) ->
-    lists:map(fun(ArgType) -> get_type({M, ArgType}) end, ArgTypes).
+convert_type(FileName, M, ArgTypes) ->
+    % The proper typeserver searches for the source file in the current directory
+    case filename:basename(FileName) =:= FileName of
+        true -> lists:map(fun(ArgType) -> get_type({M, ArgType}) end, ArgTypes);
+        false -> Dir = filename:dirname(FileName),
+                 {ok, CurrDir} = file:get_cwd(),
+                 try
+                    file:set_cwd(Dir),
+                    lists:map(fun(ArgType) -> get_type({M, ArgType}) end, ArgTypes)
+                 after
+                     file:set_cwd(CurrDir)
+                 end
+    end.
 
 % Convert type string to PropEr type
 -spec get_type({atom(), string()}) ->

@@ -2,6 +2,8 @@
 
 -compile(export_all).
 
+-include("equivchecker.hrl").
+
 statistics() ->
     % Would be nice to show the total number of tested functions
     [{_, FailCounts}] = ets:lookup(stat, counts),
@@ -83,8 +85,22 @@ disable_output() ->
 enable_output(Leader) ->
     group_leader(Leader, self()).
 
-common_postfix(Str1, Str2) ->
-    common_postfix(lists:reverse(Str1), lists:reverse(Str2), []).
+-spec common_filename_postfix(filename(), filename()) -> filename().
+common_filename_postfix(F1, F2) ->
+    filename:join(common_postfix(filename:split(F1),
+                                 filename:split(F2))).
 
-common_postfix([H1|T1], [H2|T2], Acc) when H1 =:= H2 -> common_postfix(T1,T2, [H1|Acc]);
+-spec common_postfix(list(), list()) -> list().
+common_postfix(L1, L2) -> common_postfix(lists:reverse(L1), lists:reverse(L2), []).
+
+-spec common_postfix(list(), list(), list()) -> list().
+common_postfix([H1|T1], [H2|T2], Acc) when H1 =:= H2 ->
+    common_postfix(T1,T2, [H1|Acc]);
 common_postfix(_, _, Acc) -> Acc.
+
+% Removes Dir from the filename File
+-spec remove_base_dir(filename(), filename()) -> filename().
+remove_base_dir(Dir, File) ->
+    DirLen = length(filename:split(Dir)),
+    FileList = filename:split(File),
+    filename:join(lists:sublist(FileList, DirLen + 1, length(FileList))).
