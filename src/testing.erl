@@ -7,7 +7,7 @@
          eval_proc/3,
          eval_func/4]).
 
--define(PEER_TIMEOUT, 1000).
+-define(PEER_TIMEOUT, 1500).
 
 -include_lib("proper/include/proper.hrl").
 
@@ -48,18 +48,28 @@ collect_results(Num, Res) ->
 
 % -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
 eval_func(M, F, A, Pid) ->
-    {L, OutFile} = utils:start_capture(),
-    Pid ! {self(), try erlang:apply(M, F, A) of
-              Val -> {normal, Val}
-          catch
-              error:Error -> error
-          end},
-    utils:stop_capture(L, OutFile).
+    L = utils:start_capture(Pid),
+    RetVal = try erlang:apply(M, F, A) of
+                 Val -> {normal, Val}
+             catch
+                 error:Error -> error
+             end,
+    Pid ! {self(), RetVal},
+    utils:stop_capture(L).
 
 eval_proc(M, F, A) ->
     Pid = spawn(testing, eval_func, [M, F, A, self()]),
     receive
-        {Pid, Val} -> Val
+        {Pid, Res} -> Res
+    end,
+    IO = get_messages([]),
+    {Res,IO}.
+
+get_messages(L) ->
+    receive
+        {io, Msg} -> get_messages([Msg|L])
+    after
+        0 -> L
     end.
 
 % Spawns a process on each node that evaluates the function and
@@ -68,17 +78,9 @@ eval_proc(M, F, A) ->
 prop_same_output(OrigNode, RefacNode, M, F, A) ->
     Out1 = peer:call(OrigNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
     Out2 = peer:call(RefacNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
+    % erlang:display({A,Out1,Out2}),
 
-    erlang:display({Out1,Out2}),
-
-    % TODO Treat all PIDs as equal when comparing by converting to empy string
-
-    case {filelib:is_file("../orig@T480"), filelib:is_file("../refac@T480")} of
-        {true, true} -> F1 = file:read_file("../orig@T480"),
-                        F2 = file:read_file("../refac@T480"),
-                        Out1 =:= Out2 andalso F1 =:= F2;
-        _            -> Out1 =:= Out2
-    end.
+    Out1 =:= Out2.
 
 test_function({FileName, {M,F,A}, Type}, OrigNode, RefacNode, Options, Pid) ->
     Pid ! {FileName, {M,F,A}, proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options)}.
