@@ -2,19 +2,21 @@
 
 -export([parse_transform/2]).
 
--include("codegen.hrl").
-
-parse_transform(Forms, _Options) ->
+parse_transform(Forms, Options) ->
     % io:fwrite("Forms = ~p~n", [Forms]),
     % Forms.
-    parse_trans:plain_transform(fun do_transform/1, Forms).
+    {seed, Seed} = lists:keyfind(seed, 1, Options),
+    Trans = fun (Form) -> do_transform(Seed, Form) end,
+    parse_trans:plain_transform(Trans, Forms).
 
-do_transform({'op', L, '!', Lhs, Rhs}) ->
+
+do_transform(_, {'op', L, '!', Lhs, Rhs}) ->
     [NewRhs] = parse_trans:plain_transform(fun transform_send/1, [Rhs]),
     {'op', L, '!', Lhs, NewRhs};
-do_transform({'receive', _, _} = T) ->
-    hd(parse_trans:plain_transform(fun transform_receive/1, [T]));
-do_transform(_) ->
+do_transform(Seed, {'receive', _, _} = T) ->
+    Trans = fun (Form) -> transform_receive(Seed, Form) end,
+    hd(parse_trans:plain_transform(Trans, [T]));
+do_transform(_, _) ->
     continue.
 
 
@@ -64,7 +66,7 @@ transform_send(T) ->
 %
 % Later it would be better to look at the match clasuses inside the receive and generate
 % data based on that
-transform_receive(T) ->
+transform_receive({Meg,Sec,Mic},T) ->
     L = erl_syntax:get_pos(T),
     {call,
      L,
@@ -98,7 +100,13 @@ transform_receive(T) ->
                  {atom,L,proper_types},
                  {atom,L,any}},
                 []}]},
-             {integer,L,1000}]}},
+             {integer,L,3},
+             {tuple,
+              L,
+              [{integer,L,Meg},
+               {integer,L,Sec},
+               {integer,L,Mic}]}
+            ]}},
           {call,
            L,
            {remote,L,{atom,L,lists},{atom,L,map}},

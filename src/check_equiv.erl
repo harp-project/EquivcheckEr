@@ -5,16 +5,18 @@
 -compile(export_all). % Exports all functions
 -compile(debug_info).
 
-compile(Modules, DirName) ->
+compile(Modules, DirName, Seed) ->
     % TODO Handle error
     file:make_dir(DirName),
-    lists:map(fun(X) -> compile:file(X,
-                                     [export_all,
-                                      debug_info,
-                                      {outdir, DirName},
-                                      {parse_transform, pt},
-                                      {warn_format, 0}
-                                     ])
+    lists:map(fun(X) ->
+                      compile:file(X,
+                                   [export_all,
+                                    debug_info,
+                                    {outdir, DirName},
+                                    {parse_transform, pt},
+                                    {warn_format, 0},
+                                    {seed, Seed}
+                                   ])
               end, Modules).
 
 start_nodes() ->
@@ -73,8 +75,9 @@ check_equiv(OrigDir, RefacDir) ->
     OrigFiles = lists:map(fun(File) -> filename:join([OrigDir, File]) end, ModFiles),
     RefacFiles = lists:map(fun(File) -> filename:join([RefacDir, File]) end, ModFiles),
 
-    compile(OrigFiles, ?ORIGINAL_BIN_FOLDER),
-    compile(RefacFiles, ?REFACTORED_BIN_FOLDER),
+    Seed = os:timestamp(), % seed for the PropEr generator
+    compile(OrigFiles, ?ORIGINAL_BIN_FOLDER, Seed),
+    compile(RefacFiles, ?REFACTORED_BIN_FOLDER, Seed),
 
     {OrigNode, RefacNode} = start_nodes(),
 
