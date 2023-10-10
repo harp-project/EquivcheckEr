@@ -69,7 +69,16 @@ prop_same_output(OrigNode, RefacNode, M, F, A) ->
     Out1 = peer:call(OrigNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
     Out2 = peer:call(RefacNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
 
-    Out1 =:= Out2.
+    erlang:display({Out1,Out2}),
+
+    % TODO Treat all PIDs as equal when comparing by converting to empy string
+
+    case {filelib:is_file("../orig@T480"), filelib:is_file("../refac@T480")} of
+        {true, true} -> F1 = file:read_file("../orig@T480"),
+                        F2 = file:read_file("../refac@T480"),
+                        Out1 =:= Out2 andalso F1 =:= F2;
+        _            -> Out1 =:= Out2
+    end.
 
 test_function({FileName, {M,F,A}, Type}, OrigNode, RefacNode, Options, Pid) ->
     Pid ! {FileName, {M,F,A}, proper:quickcheck(?FORALL(Xs, Type, prop_same_output(OrigNode, RefacNode, M, F, Xs)), Options)}.

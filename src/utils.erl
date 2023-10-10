@@ -89,10 +89,11 @@ enable_output(Leader) ->
 % and ignoring any input
 capture_group_leader(OutFile) ->
     receive
-        {io_request, _, _, O} = Req when element(1,O) =:= 'put_chars' ->
+        {io_request, From, ReplyAs, O} = Req when element(1,O) =:= 'put_chars' ->
             group_leader(OutFile, self()),
             group_leader() ! Req,
             group_leader(self(), self()),
+            From ! {io_reply, ReplyAs, ok},
             capture_group_leader(OutFile);
         {io_request, From, ReplyAs, _} ->
             From ! {io_reply, ReplyAs, {error, 'input'}},
