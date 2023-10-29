@@ -62,21 +62,26 @@ parse_typer(TyperOutput) ->
                                 {File, Specs} end, Matches),
 
             lists:map(fun({File, SpecLines}) ->
-                            {utils:filename_to_module(File),
-                             lists:map(fun parse_spec/1, string:split(SpecLines, "\n", all))} end,
+                              {utils:filename_to_module(File),
+                               lists:filter(fun(Spec) -> Spec =/= noparse end, % Get rid of invalid specs
+                                            lists:map(fun parse_spec/1,
+                                                      string:split(SpecLines, "\n", all)))} end,
                       Specs)
     end.
 
-% Given a function spec, gives back the name and input types
--spec parse_spec(string()) -> {atom(), [string()]}.
+% Given a function spec, gives back the name and input types or noparse in case of invalid input
+-spec parse_spec(string()) -> {atom(), [string()]} | atom().
 parse_spec(SpecStr) ->
     Options = [global, {capture, [1,2], list}],
-    {match, [[FunName, ArgsStr]]} = re:run(SpecStr, "-spec (.*?)\\((.*)\\) ->.*", Options),
-    
-    case ArgsStr of
-        []   -> {list_to_atom(FunName), ""}; % Nullary function
-        Args -> {list_to_atom(FunName), utils:split_args(Args)}
+    case re:run(SpecStr, "-spec (.*?)\\((.*?)\\) ->.*", Options) of
+        {match, [[FunName, ArgsStr]]} -> 
+            case ArgsStr of
+                []   -> {list_to_atom(FunName), ""}; % Nullary function
+                Args -> {list_to_atom(FunName), utils:split_args(Args)}
+            end;
+        nomatch -> noparse
     end.
+        
 
 % PLT (Persistent Lookup Table) related functions
 
