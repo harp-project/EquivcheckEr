@@ -7,7 +7,7 @@
          eval_proc/3,
          eval_func/4]).
 
--define(PEER_TIMEOUT, 1500).
+-define(PEER_TIMEOUT, 1000).
 
 -include_lib("proper/include/proper.hrl").
 
@@ -62,9 +62,11 @@ eval_proc(M, F, A) ->
     receive
         {Pid, Res} -> Res
     end,
-    IO = get_messages([]),
+    IO = get_messages(),
     {Res,IO}.
 
+% Collects all the io related messages sent back by the capturing process
+get_messages()  -> get_messages([]).
 get_messages(L) ->
     receive
         {io, Msg} -> get_messages([Msg|L])
@@ -76,9 +78,11 @@ get_messages(L) ->
 % sends back the result to this process
 -spec prop_same_output(pid(), pid(), atom(), atom(), [term()]) -> boolean().
 prop_same_output(OrigNode, RefacNode, M, F, A) ->
-    Out1 = peer:call(OrigNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
-    Out2 = peer:call(RefacNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
-    % erlang:display({A,Out1,Out2}),
+    {Val1,IO1} = peer:call(OrigNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
+    {Val2,IO2} = peer:call(RefacNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
+
+    Out1 = {Val1,utils:remove_pid(IO1)},
+    Out2 = {Val2,utils:remove_pid(IO2)},
 
     Out1 =:= Out2.
 

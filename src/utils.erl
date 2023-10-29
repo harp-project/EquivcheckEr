@@ -85,7 +85,7 @@ disable_output() ->
 enable_output(Leader) ->
     group_leader(Leader, self()).
 
-% Custom group leader for sending all output to OutFile
+% Custom group leader for sending all io_request to specified process
 % and ignoring any input
 capture_group_leader(Pid) ->
     receive
@@ -99,16 +99,16 @@ capture_group_leader(Pid) ->
             capture_group_leader(Pid)
     end.
 
-% Sends the output to a file with the name of the current node,
+% Sends the io_request to the given process,
 % also errors out on any input
-% -spec start_capture() -> {pid(), file:io_device()}.
+-spec start_capture(pid()) -> {pid()}.
 start_capture(Pid) ->
     Old = group_leader(),
     New = spawn(utils, capture_group_leader, [Pid]),
     group_leader(New, self()),
     Old.
 
-% -spec stop_capture(pid(), file:io_device()) -> none().
+-spec stop_capture(pid()) -> none().
 stop_capture(Leader) ->
     group_leader(Leader, self()).
 
@@ -131,3 +131,13 @@ remove_base_dir(Dir, File) ->
     DirLen = length(filename:split(Dir)),
     FileList = filename:split(File),
     filename:join(lists:sublist(FileList, DirLen + 1, length(FileList))).
+
+% Traverses a mix of nested lists/tuples and replaces any Pid with the atom 'pid'
+remove_pid(List) when is_list(List) ->
+  [remove_pid(Item) || Item <- List];
+remove_pid(Tuple) when is_tuple(Tuple) ->
+  list_to_tuple([remove_pid(Item) || Item <- tuple_to_list(Tuple)]);
+remove_pid(Pid) when is_pid(Pid) ->
+  pid;
+remove_pid(Item) ->
+  Item.
