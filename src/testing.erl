@@ -7,7 +7,7 @@
          eval_proc/3,
          eval_func/4]).
 
--define(PEER_TIMEOUT, 100).
+-define(PEER_TIMEOUT, 1000).
 
 -include_lib("proper/include/proper.hrl").
 
