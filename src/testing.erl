@@ -48,26 +48,41 @@ collect_results(Num, Res) ->
 
 % -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
 eval_func(M, F, A, Pid) ->
-    {L, OutFile} = utils:start_capture(),
-    Pid ! {self(), try erlang:apply(M, F, A) of
-              Val -> {normal, Val}
-          catch
-              error:Error -> error
-          end},
-    utils:stop_capture(L, OutFile).
+    L = utils:start_capture(Pid),
+    RetVal = try erlang:apply(M, F, A) of
+                 Val -> {normal, Val}
+             catch
+                 error:Error -> error
+             end,
+    Pid ! {self(), RetVal},
+    utils:stop_capture(L).
 
 eval_proc(M, F, A) ->
     Pid = spawn(testing, eval_func, [M, F, A, self()]),
     receive
-        {Pid, Val} -> Val
+        {Pid, Res} -> Res
+    end,
+    IO = get_messages(),
+    {Res,IO}.
+
+% Collects all the io related messages sent back by the capturing process
+get_messages()  -> get_messages([]).
+get_messages(L) ->
+    receive
+        {io, Msg} -> get_messages([Msg|L])
+    after
+        0 -> L
     end.
 
 % Spawns a process on each node that evaluates the function and
 % sends back the result to this process
 -spec prop_same_output(pid(), pid(), atom(), atom(), [term()]) -> boolean().
 prop_same_output(OrigNode, RefacNode, M, F, A) ->
-    Out1 = peer:call(OrigNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
-    Out2 = peer:call(RefacNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
+    {Val1,IO1} = peer:call(OrigNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
+    {Val2,IO2} = peer:call(RefacNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
+
+    Out1 = {Val1,utils:remove_pid(IO1)},
+    Out2 = {Val2,utils:remove_pid(IO2)},
 
     Out1 =:= Out2.
 
