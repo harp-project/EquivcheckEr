@@ -19,6 +19,16 @@ compile(Modules, DirName, Seed) ->
                                    ])
               end, Modules).
 
+unzip_modules() ->
+    {ok, [_,_,_,{archive,Archive}]} = escript:extract(escript:script_name(),[]),
+    {ok, Files} = zip:unzip(Archive,[memory]),
+    {_, Bin} = lists:keyfind("equivchecker/ebin/testing.beam", 1, Files),
+    {_, Bin2} = lists:keyfind("equivchecker/ebin/utils.beam", 1, Files),
+    file:write_file(filename:join([?ORIGINAL_BIN_FOLDER, "testing.beam"]), Bin),
+    file:write_file(filename:join([?REFACTORED_BIN_FOLDER, "testing.beam"]), Bin),
+    file:write_file(filename:join([?ORIGINAL_BIN_FOLDER, "utils.beam"]), Bin2),
+    file:write_file(filename:join([?REFACTORED_BIN_FOLDER, "utils.beam"]), Bin2).
+
 start_nodes() ->
     % TODO Handle error, use other port if its already used
     {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", ?ORIGINAL_BIN_FOLDER]}),
@@ -45,7 +55,7 @@ get_typeinfo(Dir) ->
 
 check_equiv(OrigDir, RefacDir) ->
     Configs = config:load_config(),
-    % typing:ensure_plt(Configs),
+    typing:ensure_plt(Configs),
 
     DiffOutput = os:cmd("diff -x '.git' -u0 -br " ++ OrigDir ++ " " ++ RefacDir),
     Diffs = diff:diff(DiffOutput),
@@ -78,6 +88,8 @@ check_equiv(OrigDir, RefacDir) ->
     Seed = os:timestamp(), % seed for the PropEr generator
     compile(OrigFiles, ?ORIGINAL_BIN_FOLDER, Seed),
     compile(RefacFiles, ?REFACTORED_BIN_FOLDER, Seed),
+
+    unzip_modules(),
 
     {OrigNode, RefacNode} = start_nodes(),
 
