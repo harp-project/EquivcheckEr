@@ -93,7 +93,7 @@ prompt_for_plt() ->
 
 -spec check_plt() -> atom().
 check_plt() ->
-    Loc = dialyzer_iplt:get_default_iplt_filename(),
+    Loc = dialyzer_cplt:get_default_cplt_filename(),
     case dialyzer:plt_info(Loc) of
         {ok,_}     -> found;
         _          -> not_found
@@ -111,9 +111,11 @@ ensure_plt(Configs) ->
             case prompt_for_plt() of
                 "\n" -> 
                     io:format("Generating PLT. This could take a while...\n"),
-                    Apps = ["erts", "kernel", "stdlib", "mnesia"],
-                    Dirs = dialyzer_cl_parse:get_lib_dir(Apps),
-                    dialyzer_cl:start(#options{analysis_type = plt_build, files = Dirs, get_warnings = false}),
+                    % Apps = ["erts", "kernel", "stdlib", "mnesia"],
+                    % Dirs = dialyzer_options:get_lib_dir(Apps),
+                    % Opts = #options{analysis_type = plt_build, get_warnings = false},
+                    % dialyzer_cl:start(Opts),
+                    os:cmd("dialyzer --build_plt --apps erts kernel stdlib mnesia"),
                     ok;
                 Loc  ->
                     os:putenv("DIALYZER_PLT", string:trim(Loc)),
