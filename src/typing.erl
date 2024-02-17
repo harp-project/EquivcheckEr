@@ -111,10 +111,6 @@ ensure_plt(Configs) ->
             case prompt_for_plt() of
                 "\n" -> 
                     io:format("Generating PLT. This could take a while...\n"),
-                    % Apps = ["erts", "kernel", "stdlib", "mnesia"],
-                    % Dirs = dialyzer_options:get_lib_dir(Apps),
-                    % Opts = #options{analysis_type = plt_build, get_warnings = false},
-                    % dialyzer_cl:start(Opts),
                     os:cmd("dialyzer --build_plt --apps erts kernel stdlib mnesia"),
                     ok;
                 Loc  ->
