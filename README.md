@@ -44,3 +44,8 @@ It's possible to get the output formatted as JSON:
 Statistical information about the tests can be generated with `-s` or `--statistics`:
 
 `$ equivchecker --statistics`
+
+## Acknowledgments
+
+We would like to thank the [Erlang Ecosystem Foundation](https://erlef.org/) for generously funding the development of this project.
+Their support has been invaluable and has allowed us to bring this project to life.
