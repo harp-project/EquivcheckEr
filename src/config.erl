@@ -7,7 +7,7 @@
 
 -type config() :: [{string(), string()}].
 
--define(CONF_DEFAULT_LOC, "/equivcheckrc").
+-define(CONF_DEFAULT_LOC, "equivcheckrc").
 -define(SEPARATOR, " "). % Separates the config key from the value in the config file
 
 -spec update_config(config(), string(), string()) -> config().
@@ -41,8 +41,7 @@ serialize(Config) ->
 
 -spec load_config() -> config().
 load_config() -> % TODO non-default location as argument
-    ConfigDir = os:getenv("XDG_CONFIG_HOME"),
-    FileName = ConfigDir ++ ?CONF_DEFAULT_LOC,
+    FileName = filename:basedir(user_config, ?CONF_DEFAULT_LOC),
     case filelib:is_file(FileName) of
         true ->
             {_, File} = file:read_file(FileName),
@@ -53,6 +52,5 @@ load_config() -> % TODO non-default location as argument
 
 -spec save_config(config()) -> atom().
 save_config(Config) ->
-    ConfigDir = os:getenv("XDG_CONFIG_HOME"),
-    FileName = ConfigDir ++ ?CONF_DEFAULT_LOC,
+    FileName = filename:basedir(user_config, ?CONF_DEFAULT_LOC),
     file:write_file(FileName, binary:list_to_bin(serialize(Config))).

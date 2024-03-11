@@ -75,7 +75,7 @@ parse_diff(DiffStr) ->
 extract_file(DiffLine) ->
     Options = [global, {capture, [1,2], list}],
     {match, [[OrigFile, RefacFile]]} = re:run(DiffLine, ".*?(/.*?\.erl).*?(/.*?\.erl)", Options),
-    utils:common_filename_postfix(OrigFile, RefacFile).
+    equivchecker_utils:common_filename_postfix(OrigFile, RefacFile).
 
 % Checks if the given file in the diff output is erlang source code
 -spec is_erl_source([diff_line()]) -> boolean().

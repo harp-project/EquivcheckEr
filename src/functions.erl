@@ -79,7 +79,7 @@ modified({FileName, {OrigLineNums, RefacLineNums},
       {RefacTokens, RefacAST}}) ->
     OrigFuns = functions(OrigTokens, OrigAST),
     RefacFuns = functions(RefacTokens, RefacAST),
-    Module = utils:filename_to_module(FileName),
+    Module = equivchecker_utils:filename_to_module(FileName),
     OrigChanged = lists:map(fun({Name, Arity, _}) -> {FileName, {Module, Name, Arity}} end, changed(OrigLineNums, OrigFuns)),
     RefacChanged = lists:map(fun({Name, Arity, _}) -> {FileName, {Module, Name, Arity}} end, changed(RefacLineNums, RefacFuns)),
     {OrigChanged, RefacChanged}.
@@ -113,8 +113,8 @@ callgraph(OrigDir, RefacDir) ->
 find_callers({FileName, FunName, Arity}, Dir) ->
     AbsDir = filename:absname(Dir),
     AbsFileName = AbsDir ++ "/" ++ filename:basename(FileName),
-    Leader = utils:disable_output(),
+    Leader = equivchecker_utils:disable_output(),
     {_, Funs} = wrangler_code_inspector_lib:calls_to_fun_1(AbsFileName, FunName, Arity, [AbsDir], 4),
-    utils:enable_output(Leader),
+    equivchecker_utils:enable_output(Leader),
     lists:map(fun({{FileName, F, A}, _}) ->
-                      {utils:remove_base_dir(Dir, FileName), {utils:filename_to_module(FileName), F, A}} end, Funs).
+                      {equivchecker_utils:remove_base_dir(Dir, FileName), {equivchecker_utils:filename_to_module(FileName), F, A}} end, Funs).

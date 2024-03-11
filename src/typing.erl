@@ -62,21 +62,26 @@ parse_typer(TyperOutput) ->
                                 {File, Specs} end, Matches),
 
             lists:map(fun({File, SpecLines}) ->
-                            {utils:filename_to_module(File),
-                             lists:map(fun parse_spec/1, string:split(SpecLines, "\n", all))} end,
+                              {equivchecker_utils:filename_to_module(File),
+                               lists:filter(fun(Spec) -> Spec =/= noparse end, % Get rid of invalid specs
+                                            lists:map(fun parse_spec/1,
+                                                      string:split(SpecLines, "\n", all)))} end,
                       Specs)
     end.
 
-% Given a function spec, gives back the name and input types
--spec parse_spec(string()) -> {atom(), [string()]}.
+% Given a function spec, gives back the name and input types or noparse in case of invalid input
+-spec parse_spec(string()) -> {atom(), [string()]} | atom().
 parse_spec(SpecStr) ->
     Options = [global, {capture, [1,2], list}],
-    {match, [[FunName, ArgsStr]]} = re:run(SpecStr, "-spec (.*?)\\((.*)\\) ->.*", Options),
-    
-    case ArgsStr of
-        []   -> {list_to_atom(FunName), ""}; % Nullary function
-        Args -> {list_to_atom(FunName), utils:split_args(Args)}
+    case re:run(SpecStr, "-spec (.*?)\\((.*?)\\) ->.*", Options) of
+        {match, [[FunName, ArgsStr]]} -> 
+            case ArgsStr of
+                []   -> {list_to_atom(FunName), ""}; % Nullary function
+                Args -> {list_to_atom(FunName), equivchecker_utils:split_args(Args)}
+            end;
+        nomatch -> noparse
     end.
+        
 
 % PLT (Persistent Lookup Table) related functions
 
@@ -88,7 +93,7 @@ prompt_for_plt() ->
 
 -spec check_plt() -> atom().
 check_plt() ->
-    Loc = dialyzer_iplt:get_default_iplt_filename(),
+    Loc = dialyzer_cplt:get_default_cplt_filename(),
     case dialyzer:plt_info(Loc) of
         {ok,_}     -> found;
         _          -> not_found
@@ -106,9 +111,7 @@ ensure_plt(Configs) ->
             case prompt_for_plt() of
                 "\n" -> 
                     io:format("Generating PLT. This could take a while...\n"),
-                    Apps = ["erts", "kernel", "stdlib", "mnesia"],
-                    Dirs = dialyzer_cl_parse:get_lib_dir(Apps),
-                    dialyzer_cl:start(#options{analysis_type = plt_build, files = Dirs, get_warnings = false}),
+                    os:cmd("dialyzer --build_plt --apps erts kernel stdlib mnesia"),
                     ok;
                 Loc  ->
                     os:putenv("DIALYZER_PLT", string:trim(Loc)),

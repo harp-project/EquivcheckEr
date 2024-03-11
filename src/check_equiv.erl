@@ -19,6 +19,17 @@ compile(Modules, DirName, Seed) ->
                                    ])
               end, Modules).
 
+% This is a hack, see https://github.com/harp-project/EquivcheckEr/issues/26 for details
+unzip_modules() ->
+    {ok, [_,_,_,{archive,Archive}]} = escript:extract(escript:script_name(),[]),
+    {ok, Files} = zip:unzip(Archive,[memory]),
+    {_, Bin} = lists:keyfind("equivchecker/ebin/equivchecker_testing.beam", 1, Files),
+    {_, Bin2} = lists:keyfind("equivchecker/ebin/equivchecker_utils.beam", 1, Files),
+    file:write_file(filename:join([?ORIGINAL_BIN_FOLDER, "equivchecker_testing.beam"]), Bin),
+    file:write_file(filename:join([?REFACTORED_BIN_FOLDER, "equivchecker_testing.beam"]), Bin),
+    file:write_file(filename:join([?ORIGINAL_BIN_FOLDER, "equivchecker_utils.beam"]), Bin2),
+    file:write_file(filename:join([?REFACTORED_BIN_FOLDER, "equivchecker_utils.beam"]), Bin2).
+
 start_nodes() ->
     % TODO Handle error, use other port if its already used
     {_, Orig, _} = peer:start(#{name => orig, connection => 33001, args => ["-pa", ?ORIGINAL_BIN_FOLDER]}),
@@ -33,7 +44,7 @@ stop_nodes(Orig, Refac) ->
 % the token list and AST for each
 -spec read_sources(filename()) -> {filename(), file_info()}.
 read_sources(FileName) ->
-    Source = utils:read(FileName),
+    Source = equivchecker_utils:read(FileName),
     {_, Tokens, _} = erl_scan:string(Source),
     {ok, AST} = epp_dodger:quick_parse_file(FileName),
 
@@ -45,7 +56,7 @@ get_typeinfo(Dir) ->
 
 check_equiv(OrigDir, RefacDir) ->
     Configs = config:load_config(),
-    % typing:ensure_plt(Configs),
+    typing:ensure_plt(Configs),
 
     DiffOutput = os:cmd("diff -x '.git' -u0 -br " ++ OrigDir ++ " " ++ RefacDir),
     Diffs = diff:diff(DiffOutput),
@@ -79,13 +90,15 @@ check_equiv(OrigDir, RefacDir) ->
     compile(OrigFiles, ?ORIGINAL_BIN_FOLDER, Seed),
     compile(RefacFiles, ?REFACTORED_BIN_FOLDER, Seed),
 
+    unzip_modules(),
+
     {OrigNode, RefacNode} = start_nodes(),
 
     % This is needed because PropEr needs the source for constructing the generator
     {ok, Dir} = file:get_cwd(),
     file:set_cwd(OrigDir),
 
-    Result = testing:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
+    Result = equivchecker_testing:run_tests(FunsToTest, OrigNode, RefacNode, Types, CallGraph),
 
     file:set_cwd(Dir),
     stop_nodes(OrigNode, RefacNode),

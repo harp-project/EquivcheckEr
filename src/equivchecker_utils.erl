@@ -1,4 +1,4 @@
--module(utils).
+-module(equivchecker_utils).
 
 -compile(export_all).
 
@@ -77,7 +77,7 @@ dummy_group_leader() ->
 -spec disable_output() -> pid().
 disable_output() ->
     Old = group_leader(),
-    New = spawn(utils, dummy_group_leader, []),
+    New = spawn(equivchecker_utils, dummy_group_leader, []),
     group_leader(New, self()),
     Old.
 
@@ -104,7 +104,7 @@ capture_group_leader(Pid) ->
 -spec start_capture(pid()) -> {pid()}.
 start_capture(Pid) ->
     Old = group_leader(),
-    New = spawn(utils, capture_group_leader, [Pid]),
+    New = spawn(equivchecker_utils, capture_group_leader, [Pid]),
     group_leader(New, self()),
     Old.
 
