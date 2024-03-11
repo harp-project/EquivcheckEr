@@ -62,7 +62,7 @@ parse_typer(TyperOutput) ->
                                 {File, Specs} end, Matches),
 
             lists:map(fun({File, SpecLines}) ->
-                              {utils:filename_to_module(File),
+                              {equivchecker_utils:filename_to_module(File),
                                lists:filter(fun(Spec) -> Spec =/= noparse end, % Get rid of invalid specs
                                             lists:map(fun parse_spec/1,
                                                       string:split(SpecLines, "\n", all)))} end,
@@ -77,7 +77,7 @@ parse_spec(SpecStr) ->
         {match, [[FunName, ArgsStr]]} -> 
             case ArgsStr of
                 []   -> {list_to_atom(FunName), ""}; % Nullary function
-                Args -> {list_to_atom(FunName), utils:split_args(Args)}
+                Args -> {list_to_atom(FunName), equivchecker_utils:split_args(Args)}
             end;
         nomatch -> noparse
     end.

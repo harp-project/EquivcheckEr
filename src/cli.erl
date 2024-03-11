@@ -91,7 +91,7 @@ show_result(Result, false, false) ->
     Formatted = format_results(Result,false),
     io:format("Results: ~p~n", [Formatted]);
 show_result(Result, false, true) ->
-    {FailCounts, Average} = utils:statistics(),
+    {FailCounts, Average} = equivchecker_utils:statistics(),
     Formatted = format_results(Result,false),
     io:format("Results: ~p~n", [Formatted]),
     io:format("Number of functions that failed: ~p~n", [length(FailCounts)]),
@@ -100,7 +100,7 @@ show_result(Result, true, false) ->
     Formatted = format_results(Result,true),
     io:format("~s\n", [jsone:encode(Formatted,[{indent, 2}, {space, 1}])]);
 show_result(Result, true, true) ->
-    {FailCounts, Average} = utils:statistics(),
+    {FailCounts, Average} = equivchecker_utils:statistics(),
     Stats = #{failed_count => length(FailCounts), average_test_count => Average},
     Output = #{statistics => Stats, results => format_results(Result,true)},
     io:format("~s\n", [jsone:encode(Output,[{indent, 2}, {space, 1}])]).

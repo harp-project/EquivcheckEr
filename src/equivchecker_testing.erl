@@ -1,4 +1,4 @@
--module(testing).
+-module(equivchecker_testing).
 
 -type type() :: string().
 
@@ -19,7 +19,7 @@ run_tests([], _, _, _, _, Results) ->
 run_tests(Functions, OrigNode, RefacNode, Types, CallGraph, Results) ->
     % proper:quickchek/2 stops the server, so it has to be started every time
     proper_typeserver:start(),
-    ProperOpts = [long_result, {on_output, fun(X,Y) -> utils:count_tests(X,Y) end}],
+    ProperOpts = [long_result, {on_output, fun(X,Y) -> equivchecker_utils:count_tests(X,Y) end}],
 
     % Convert type information to PropEr type
     FunctionsTyped = lists:map(fun({FileName, {M,F,A}, ArgTypes}) -> {FileName, {M, F, A}, convert_type(FileName, M, ArgTypes)} end, Functions),
@@ -27,7 +27,7 @@ run_tests(Functions, OrigNode, RefacNode, Types, CallGraph, Results) ->
     % A result is a tuple: {Module, Function, Counterexample}
     % If no counterexample is found, the third value is 'true' instead
     lists:map(fun(Function) ->
-                      spawn(testing, test_function, [Function, OrigNode, RefacNode, ProperOpts, self()])
+                      spawn(equivchecker_testing, test_function, [Function, OrigNode, RefacNode, ProperOpts, self()])
               end, FunctionsTyped),
 
     Res = collect_results(length(FunctionsTyped), []),
@@ -48,17 +48,17 @@ collect_results(Num, Res) ->
 
 % -spec eval_func(pid(), atom(), atom(), [term()]) -> {atom(), term()}.
 eval_func(M, F, A, Pid) ->
-    L = utils:start_capture(Pid),
+    L = equivchecker_utils:start_capture(Pid),
     RetVal = try erlang:apply(M, F, A) of
                  Val -> {normal, Val}
              catch
                  error:Error -> error
              end,
     Pid ! {self(), RetVal},
-    utils:stop_capture(L).
+    equivchecker_utils:stop_capture(L).
 
 eval_proc(M, F, A) ->
-    Pid = spawn(testing, eval_func, [M, F, A, self()]),
+    Pid = spawn(equivchecker_testing, eval_func, [M, F, A, self()]),
     receive
         {Pid, Res} -> Res
     end,
@@ -78,11 +78,11 @@ get_messages(L) ->
 % sends back the result to this process
 -spec prop_same_output(pid(), pid(), atom(), atom(), [term()]) -> boolean().
 prop_same_output(OrigNode, RefacNode, M, F, A) ->
-    {Val1,IO1} = peer:call(OrigNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
-    {Val2,IO2} = peer:call(RefacNode, testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
+    {Val1,IO1} = peer:call(OrigNode, equivchecker_testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
+    {Val2,IO2} = peer:call(RefacNode, equivchecker_testing, eval_proc, [M, F, A], ?PEER_TIMEOUT),
 
-    Out1 = {Val1,utils:remove_pid(IO1)},
-    Out2 = {Val2,utils:remove_pid(IO2)},
+    Out1 = {Val1,equivchecker_utils:remove_pid(IO1)},
+    Out2 = {Val2,equivchecker_utils:remove_pid(IO2)},
 
     Out1 =:= Out2.
 
