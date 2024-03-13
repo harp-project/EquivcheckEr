@@ -11,9 +11,10 @@
 - Git: The git cli client has to be installed
 - Dialyzer, Typer (usually packaged together with Erlang)
 
-# Installing
+## Installing
 
 Just grab the latest [release](https://github.com/harp-project/EquivcheckEr/releases/latest) and put it somewhere on your `$PATH` (e.g.: `~/.local/bin`).
+You also have to add execute permissions. (`chmod +x equivchecker`)
 
 ## Usage
 
