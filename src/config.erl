@@ -26,11 +26,17 @@ create_default() ->
     [].
     
 -spec deserialize(string()) -> config().
+deserialize("") -> [];
 deserialize(ConfigStr) ->
-    Lines = string:split(string:trim(ConfigStr), "\n", all),
-    lists:map(fun(Line) ->
-                      [Key, Value] = string:split(Line, ?SEPARATOR),
-                      {Key, Value} end, Lines).
+    try
+        Lines = string:split(string:trim(ConfigStr), "\n", all),
+        lists:map(fun(Line) ->
+                        [Key, Value] = string:split(Line, ?SEPARATOR),
+                        {Key, Value} end, Lines)
+    catch
+        error:_ -> io:format("~p~n", ["Malformed configuration file!"]),
+                   halt()
+    end.
 
 -spec serialize(config()) -> string().
 serialize(Config) ->
