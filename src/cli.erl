@@ -61,6 +61,7 @@ run_check(Original, Refactored, Json, Stats) ->
 
 setup() ->
     % Sets the name of the master node
+    os:cmd("epmd"),
     net_kernel:start(master, #{name_domain => shortnames}),
 
     % These are needed for storing statistics
