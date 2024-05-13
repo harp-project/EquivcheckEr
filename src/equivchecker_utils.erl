@@ -36,7 +36,7 @@ args([H|T], Acc) when [H] =:= "[" -> bracket(T, "[" ++ Acc, 0);
 args([H|T], Acc) -> args(T, Acc ++ [H]).
 
 paren([H|T], Acc, Level) when [H] =:= "(" -> paren(T, Acc ++ "(", Level + 1);
-paren([H|[_|T]], Acc, Level) when ([H] =:= ")") and (Level =:= 0) -> args(T, Acc ++ ") ");
+paren([H|[_|T]], Acc, Level) when ([H] =:= ")") and (Level =:= 0) -> [Acc ++ ")"|args(T, "")];
 paren([H|[]], Acc, Level) when ([H] =:= ")") and (Level =:= 0) -> [Acc ++ ")"];
 paren([H|T], Acc, Level) when ([H] =:= ")") and (Level =/= 0) -> paren(T, Acc ++ ")", Level - 1);
 paren([H|T], Acc, Level) -> paren(T, Acc ++ [H], Level).
