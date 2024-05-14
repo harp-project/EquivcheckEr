@@ -1,6 +1,6 @@
 %% This module is for extracting information from the diff, and presenting it
 %% The main unit of the differences between two versions is a hunk, which contains
-%% all the information about a change that is needed for finding out what has to be testsd
+%% all the information about a change that is needed for finding out what has to be tested
 -module(diff).
 
 -include("equivchecker.hrl").
