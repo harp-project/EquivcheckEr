@@ -141,3 +141,15 @@ remove_pid(Pid) when is_pid(Pid) ->
   pid;
 remove_pid(Item) ->
   Item.
+
+log(IsVerbose, Message) ->
+    if IsVerbose ->
+           io:format(Message ++ "~n", []);
+       true -> ok
+    end.
+log(IsVerbose, Message, Term) ->
+    if IsVerbose ->
+           io:format(Message, []),
+           io:format(": ~p~n", [Term]);
+       true -> ok
+    end.
