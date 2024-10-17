@@ -5,6 +5,7 @@
 
 ## Dependencies
 
+- Erlang/OTP 26 or later
 - [Wrangler](https://refactoringtools.github.io/docs/wrangler/)
 - [PropEr](https://proper-testing.github.io/)
 - Jsone
